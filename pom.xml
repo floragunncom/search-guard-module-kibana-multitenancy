@@ -5,8 +5,7 @@
   here is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS 
   OF ANY KIND, either express or implied. -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <!--http://svn.apache.org/viewvc/directory/apacheds/trunk/ldap-client-test/src/test/java/org/apache/directory/shared/client/api/LdapConnectionTest.java?revision=1243572&view=markup -->
@@ -16,7 +15,7 @@
 
   <groupId>com.floragunn</groupId>
   <artifactId>dlic-search-guard-module-dlsfls</artifactId>
-  <version>2.3.3.0-rc1-SNAPSHOT</version>
+  <version>2.3.3.0-rc1</version>
   <packaging>jar</packaging>
 
   <name>Search Guard</name>
@@ -45,7 +44,7 @@
     <url>https://github.com/floragunncom/search-guard-module-dlsfls</url>
     <connection>scm:git:git@github.com:floragunncom/search-guard-module-dlsfls.git</connection>
     <developerConnection>scm:git:git@github.com:floragunncom/search-guard-module-dlsfls.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>v2.3.3.0-rc1</tag>
   </scm>
 
   <issueManagement>

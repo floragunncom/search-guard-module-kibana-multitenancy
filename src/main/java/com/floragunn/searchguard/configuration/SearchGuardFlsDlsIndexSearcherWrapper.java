@@ -15,9 +15,7 @@
 package com.floragunn.searchguard.configuration;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.lucene.index.DirectoryReader;
@@ -28,12 +26,9 @@ import org.elasticsearch.index.engine.EngineConfig;
 import org.elasticsearch.index.engine.EngineException;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.query.IndexQueryParserService;
-import org.elasticsearch.index.query.ParsedQuery;
-import org.elasticsearch.index.query.QueryParsingException;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesLifecycle;
 
-import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.google.common.collect.Sets;
 
@@ -116,19 +111,8 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
                     log.trace("Found! _sg_dls_query for {}", current.getRequest().getClass());
                 }
 
-                try {
-                    final List<ParsedQuery> parsed = new ArrayList<ParsedQuery>();
-                    for (final String query : queries) {
-                        if (log.isTraceEnabled()) {
-                            log.trace("parse: {}", query);
-                        }
-                        parsed.add(parser.parse(query));
-                    }
-                    return new DlsIndexSearcher(searcher, engineConfig, parsed);
-                } catch (final QueryParsingException e) {
-                    log.error("Unable to parse dls query " + e, e);
-                    ex = e;
-                }
+                return new DlsIndexSearcher(searcher, engineConfig, parser, queries);
+               
             } else {
                 
                 if (log.isTraceEnabled()) {

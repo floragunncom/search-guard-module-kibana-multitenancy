@@ -35,7 +35,7 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>2.3.3.1</sg2.version>
+    <sg2.version>2.3.3.4</sg2.version>
     <elasticsearch.version>2.3.3</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>

@@ -17,19 +17,14 @@
 
 package com.floragunn.searchguard.configuration;
 
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.action.get.MultiGetResponse.Failure;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsFilter;
 
-import com.floragunn.searchguard.support.ConfigConstants;
-
-public class SearchGuardSettingsFilter {
-
-    @Inject
-    public SearchGuardSettingsFilter(final SettingsFilter settingsFilter, final Settings settings) {
-        super();
-        String searchguardIndex = settings.get(ConfigConstants.SG_CONFIG_INDEX, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
-        settingsFilter.addFilter(String.format("%s.*", searchguardIndex));
-    }
+public interface ConfigCallback {
     
+    void success(String type, Settings settings);
+    void noData(String type);
+    void singleFailure(Failure failure);
+    void failure(Throwable t);
+
 }

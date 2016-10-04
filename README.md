@@ -31,11 +31,11 @@ Advanced functionalities like LDAP and Kerberos authentication/authorization as 
  * ``sudo bin/plugin install -b com.floragunn/search-guard-ssl/2.3.5.16``
 
 * Install search-guard-2 plugin
- * ``sudo bin/plugin install -b com.floragunn/search-guard-2/2.3.5.6``
+ * ``sudo bin/plugin install -b com.floragunn/search-guard-2/2.3.5.7``
  
 (See also the [Vagrant file](https://github.com/floragunncom/search-guard/blob/master/Vagrantfile) we provide)
 
-Both plugins need to be installed on every node in the cluster. Tribe nodes are not yet supported.
+Both plugins need to be installed on every node in the cluster.
 
 After the plugins are installed you need to configure them. ``search-guard-ssl`` needs to be configured statically
 in elasticsearch.yml (any change needs a restart of the node). See [search-guard-ssl documentation](https://github.com/floragunncom/search-guard-ssl) how to configure it. ``search-guard-2`` needs only a single entry in elasticsearch.yml (see below), all other configuration is stored in Elasticsearch itself and can be dynamically changed without restarting a node or the cluster.

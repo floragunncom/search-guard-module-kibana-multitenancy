@@ -20,7 +20,6 @@ import java.util.Set;
 
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.IndexSearcher;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.engine.EngineException;
@@ -50,11 +49,9 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
         printLicenseInfo();
     }
 
-    @Inject
-    public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings,
-            final QueryShardContext queryShardContext) {
+    public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings) {
         super(indexService, settings);
-        this.queryShardContext = queryShardContext;
+        this.queryShardContext = indexService.newQueryShardContext();
         metaFields = Sets.union(Sets.newHashSet("_source", "_version"), Sets.newHashSet(MapperService.getAllMetaFields()));
     }
 
@@ -69,12 +66,12 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
         if (allowedFlsFields != null && !allowedFlsFields.isEmpty()) {
             flsFields.addAll(allowedFlsFields);
             if (log.isTraceEnabled()) {
-                log.trace("Found! _sg_fls_fields for {}");
+                log.trace("Found! _sg_fls_fields: {}",flsFields);
             }
         } else {
 
             if (log.isTraceEnabled()) {
-                log.trace("No _sg_fls_fields for {}");
+                log.trace("No _sg_fls_fields");
             }
 
             return reader;
@@ -93,7 +90,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
         if (queries != null && !queries.isEmpty()) {
 
             if (log.isTraceEnabled()) {
-                log.trace("Found! _sg_dls_query for {}");
+                log.trace("Found! _sg_dls_query: {}",queries);
             }
 
             return new DlsIndexSearcher(searcher, queryShardContext, queries);
@@ -101,7 +98,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
         } else {
 
             if (log.isTraceEnabled()) {
-                log.trace("No _sg_dls_query for {}");
+                log.trace("No _sg_dls_query");
             }
 
             return searcher;

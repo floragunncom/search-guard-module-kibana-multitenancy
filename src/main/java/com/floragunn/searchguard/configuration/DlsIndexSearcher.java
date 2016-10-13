@@ -45,26 +45,33 @@ class DlsIndexSearcher extends IndexSearcher {
         this.original = original;
         this.unparsedDlsQueries = unparsedDlsQueries;
         this.queryShardContext = queryShardContext;
-        this.setQueryCache(null); //engineConfig.getQueryCache()
-        //this.setQueryCachingPolicy(engineConfig.getQueryCachingPolicy());
-        //this.setSimilarity(engineConfig.getSimilarity());
+        
+        setQueryCache(null);  
+        //setQueryCache(original.getQueryCache());
+        setQueryCachingPolicy(original.getQueryCachingPolicy());
+        setSimilarity(original.getSimilarity(true));
     }
-    
+
     @Override
-    public Weight createWeight(Query query, boolean needsScores) throws IOException {
+    public Weight createNormalizedWeight(Query query, boolean needsScores) throws IOException {
+        
+        if (log.isTraceEnabled()) {
+            log.trace("query: {}", query);
+        }
         
         for (final String unparsedDlsQuery : unparsedDlsQueries) {
+            
             if (log.isTraceEnabled()) {
-                log.trace("parse: {}", query);
+                log.trace("parse: {}", unparsedDlsQuery);
             }
             
             XContentParser parser = XContentFactory.xContent(unparsedDlsQuery).createParser(unparsedDlsQuery);                
-            QueryBuilder qb = queryShardContext.newParseContext(parser).parseTopLevelQueryBuilder();
+            QueryBuilder qb = queryShardContext.newParseContext(parser).parseInnerQueryBuilder().get();
             ParsedQuery parsedQuery = queryShardContext.toQuery(qb);
             parsedDlsQueries.add(parsedQuery);
         }
         
-        return original.createWeight(rewriteToDls(query, needsScores), needsScores);
+        return original.createNormalizedWeight(rewriteToDls(query, needsScores), needsScores);
     }
 
 

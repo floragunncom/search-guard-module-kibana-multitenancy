@@ -170,7 +170,7 @@ class FlsFilterLeafReader extends FilterLeafReader {
                 final Tuple<XContentType, Map<String, Object>> bytesRefTuple = XContentHelper.convertToMap(bytesRef, false);
                 final Map<String, Object> filteredSource = XContentMapValues.filter(bytesRefTuple.v2(), includes, null);
                 final XContentBuilder xBuilder = XContentBuilder.builder(bytesRefTuple.v1().xContent()).map(filteredSource);
-                delegate.binaryField(fieldInfo, xBuilder.bytes().toBytes());
+                delegate.binaryField(fieldInfo, BytesReference.toBytes(xBuilder.bytes()));
             } else {
                 delegate.binaryField(fieldInfo, value);
             }

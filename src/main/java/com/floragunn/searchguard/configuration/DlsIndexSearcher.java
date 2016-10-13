@@ -19,51 +19,51 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Weight;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.index.engine.EngineConfig;
-import org.elasticsearch.index.query.IndexQueryParserService;
+import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.query.ParsedQuery;
-import org.elasticsearch.index.query.QueryParsingException;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryShardContext;
 
 class DlsIndexSearcher extends IndexSearcher {
 
-    private final ESLogger log = Loggers.getLogger(this.getClass());
+    private final Logger log = LogManager.getLogger(this.getClass());
     private final Set<String> unparsedDlsQueries;
     private final IndexSearcher original;
-    private final IndexQueryParserService parser;
+    private final QueryShardContext queryShardContext;
     private final List<ParsedQuery> parsedDlsQueries = new ArrayList<ParsedQuery>();
     
-    DlsIndexSearcher(IndexSearcher original, EngineConfig engineConfig, IndexQueryParserService parser, Set<String> unparsedDlsQueries) {
+    DlsIndexSearcher(IndexSearcher original, QueryShardContext queryShardContext, Set<String> unparsedDlsQueries) {
         super(original.getIndexReader());
         this.original = original;
         this.unparsedDlsQueries = unparsedDlsQueries;
-        this.parser = parser;
+        this.queryShardContext = queryShardContext;
         this.setQueryCache(null); //engineConfig.getQueryCache()
-        this.setQueryCachingPolicy(engineConfig.getQueryCachingPolicy());
-        this.setSimilarity(engineConfig.getSimilarity());
+        //this.setQueryCachingPolicy(engineConfig.getQueryCachingPolicy());
+        //this.setSimilarity(engineConfig.getSimilarity());
     }
     
     @Override
     public Weight createWeight(Query query, boolean needsScores) throws IOException {
         
-        try {
-            
-            for (final String unparsedDlsQuery : unparsedDlsQueries) {
-                if (log.isTraceEnabled()) {
-                    log.trace("parse: {}", query);
-                }
-                parsedDlsQueries.add(parser.parse(unparsedDlsQuery));
+        for (final String unparsedDlsQuery : unparsedDlsQueries) {
+            if (log.isTraceEnabled()) {
+                log.trace("parse: {}", query);
             }
-        } catch (final QueryParsingException e) {
-            throw new IOException(e);
+            
+            XContentParser parser = XContentFactory.xContent(unparsedDlsQuery).createParser(unparsedDlsQuery);                
+            QueryBuilder qb = queryShardContext.newParseContext(parser).parseTopLevelQueryBuilder();
+            ParsedQuery parsedQuery = queryShardContext.toQuery(qb);
+            parsedDlsQueries.add(parsedQuery);
         }
-
+        
         return original.createWeight(rewriteToDls(query, needsScores), needsScores);
     }
 

@@ -23,6 +23,7 @@ import org.elasticsearch.action.RealtimeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
@@ -35,9 +36,9 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
      * @param listener
      * @return false on error
      */
-    public boolean invoke(final ActionRequest<?> request, final ActionListener listener) {
-        final Set<String> allowedFlsFields = (Set<String>) HeaderHelper.deserializeSafeFromHeader(request, ConfigConstants.SG_FLS_FIELDS);
-        final Set<String> queries = (Set<String>) HeaderHelper.deserializeSafeFromHeader(request, ConfigConstants.SG_DLS_QUERY);
+    public boolean invoke(final ActionRequest<?> request, final ActionListener listener, ThreadContext threadContext) {
+        final Set<String> allowedFlsFields = (Set<String>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_FLS_FIELDS);
+        final Set<String> queries = (Set<String>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_DLS_QUERY);
         
         if(allowedFlsFields != null && !allowedFlsFields.isEmpty()) {
             

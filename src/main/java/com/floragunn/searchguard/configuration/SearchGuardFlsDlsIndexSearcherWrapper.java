@@ -6,8 +6,8 @@
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
  * 
  */
@@ -22,19 +22,18 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.engine.EngineConfig;
+import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.engine.EngineException;
 import org.elasticsearch.index.mapper.MapperService;
-import org.elasticsearch.index.query.IndexQueryParserService;
-import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.indices.IndicesLifecycle;
+import org.elasticsearch.index.query.QueryShardContext;
 
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.google.common.collect.Sets;
 
 public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearcherWrapper {
 
-    private final IndexQueryParserService parser;
+    private final QueryShardContext queryShardContext;
     private final Set<String> metaFields;
 
     public static void printLicenseInfo() {
@@ -52,10 +51,10 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
     }
 
     @Inject
-    public SearchGuardFlsDlsIndexSearcherWrapper(final ShardId shardId, final IndicesLifecycle indicesLifecycle,
-            final Settings indexSettings, final AdminDNs admindns, final IndexQueryParserService parser) {
-        super(shardId, indicesLifecycle, indexSettings, admindns);
-        this.parser = parser;
+    public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings,
+            final QueryShardContext queryShardContext) {
+        super(indexService, settings);
+        this.queryShardContext = queryShardContext;
         metaFields = Sets.union(Sets.newHashSet("_source", "_version"), Sets.newHashSet(MapperService.getAllMetaFields()));
     }
 
@@ -63,70 +62,49 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
     protected DirectoryReader dlsFlsWrap(final DirectoryReader reader) throws IOException {
 
         final Set<String> flsFields = new HashSet<String>(metaFields);
-        final RequestHolder current = RequestHolder.current();
 
-        if (current != null && current.getRequest() != null) {
+        final Set<String> allowedFlsFields = (Set<String>) HeaderHelper.deserializeSafeFromHeader(threadContext,
+                ConfigConstants.SG_FLS_FIELDS);
 
-            final Set<String> allowedFlsFields = (Set<String>) HeaderHelper.deserializeSafeFromHeader(current.getRequest(), "_sg_fls_fields");
-              
-            if (allowedFlsFields != null && !allowedFlsFields.isEmpty()) {
-                flsFields.addAll(allowedFlsFields);
-                if (log.isTraceEnabled()) {
-                    log.trace("Found! _sg_fls_fields for {}", current.getRequest().getClass());
-                }
-            } else {
-                
-                if (log.isTraceEnabled()) {
-                    log.trace("No _sg_fls_fields for {}", current.getRequest().getClass());
-                }
-                
-                return reader;
-            }
-
-        } else {
-            
+        if (allowedFlsFields != null && !allowedFlsFields.isEmpty()) {
+            flsFields.addAll(allowedFlsFields);
             if (log.isTraceEnabled()) {
-                log.trace("No context/request for fls");
+                log.trace("Found! _sg_fls_fields for {}");
+            }
+        } else {
+
+            if (log.isTraceEnabled()) {
+                log.trace("No _sg_fls_fields for {}");
             }
 
+            return reader;
         }
-        
+
         return new FlsFilterLeafReader.FlsDirectoryReader(reader, flsFields);
 
     }
 
     @Override
-    protected IndexSearcher dlsFlsWrap(final EngineConfig engineConfig, final IndexSearcher searcher) throws EngineException {
+    protected IndexSearcher dlsFlsWrap(final IndexSearcher searcher) throws EngineException {
 
-        final RequestHolder current = RequestHolder.current();
-        Exception ex = null;
+        final Set<String> queries = (Set<String>) HeaderHelper.deserializeSafeFromHeader(threadContext,
+                ConfigConstants.SG_DLS_QUERY);
 
-        if (current != null && current.getRequest() != null) {
-            
-            final Set<String> queries = (Set<String>) HeaderHelper.deserializeSafeFromHeader(current.getRequest(), "_sg_dls_query");
-            
-            if (queries != null && !queries.isEmpty()) {
+        if (queries != null && !queries.isEmpty()) {
 
-                if (log.isTraceEnabled()) {
-                    log.trace("Found! _sg_dls_query for {}", current.getRequest().getClass());
-                }
-
-                return new DlsIndexSearcher(searcher, engineConfig, parser, queries);
-               
-            } else {
-                
-                if (log.isTraceEnabled()) {
-                    log.trace("No _sg_dls_query for {}", current.getRequest().getClass());
-                }
-                
-                return searcher;
-            }
-        } else {
             if (log.isTraceEnabled()) {
-                log.trace("No context/request for dls");
+                log.trace("Found! _sg_dls_query for {}");
             }
-        }
 
-        throw new EngineException(shardId, "Unable to handle document level security due to: "+(ex==null?"":ex.toString()));
+            return new DlsIndexSearcher(searcher, queryShardContext, queries);
+
+        } else {
+
+            if (log.isTraceEnabled()) {
+                log.trace("No _sg_dls_query for {}");
+            }
+
+            return searcher;
+        }
     }
 }

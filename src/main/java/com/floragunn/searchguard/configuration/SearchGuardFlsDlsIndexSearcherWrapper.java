@@ -16,6 +16,7 @@ package com.floragunn.searchguard.configuration;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.lucene.index.DirectoryReader;
@@ -67,10 +68,12 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
 
         if (current != null && current.getRequest() != null) {
 
-            final Set<String> allowedFlsFields = (Set<String>) HeaderHelper.deserializeSafeFromHeader(current.getRequest(), "_sg_fls_fields");
-              
-            if (allowedFlsFields != null && !allowedFlsFields.isEmpty()) {
-                flsFields.addAll(allowedFlsFields);
+            final Map<String,Set<String>> allowedFlsFields = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(current.getRequest(), "_sg_fls_fields");
+            
+            final String eval = evalMap(allowedFlsFields, shardId.getIndex());
+            
+            if (eval != null) {
+                flsFields.addAll(allowedFlsFields.get(eval));
                 if (log.isTraceEnabled()) {
                     log.trace("Found! _sg_fls_fields for {}", current.getRequest().getClass());
                 }
@@ -103,15 +106,17 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
 
         if (current != null && current.getRequest() != null) {
             
-            final Set<String> queries = (Set<String>) HeaderHelper.deserializeSafeFromHeader(current.getRequest(), "_sg_dls_query");
+            final Map<String,Set<String>> queries = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(current.getRequest(), "_sg_dls_query");
             
-            if (queries != null && !queries.isEmpty()) {
+            final String eval = evalMap(queries, shardId.getIndex());
+            
+            if (eval != null) {
 
                 if (log.isTraceEnabled()) {
                     log.trace("Found! _sg_dls_query for {}", current.getRequest().getClass());
                 }
 
-                return new DlsIndexSearcher(searcher, engineConfig, parser, queries);
+                return new DlsIndexSearcher(searcher, engineConfig, parser, queries.get(eval));
                
             } else {
                 
@@ -128,5 +133,22 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
         }
 
         throw new EngineException(shardId, "Unable to handle document level security due to: "+(ex==null?"":ex.toString()));
+    }
+    
+    private String evalMap(Map<String,Set<String>> map, String index) {
+        
+        if(map == null) {
+            return null;
+        }
+        
+        if(map.get(index) != null) {
+            return index;
+        } else if(map.get("*") != null) {
+            return "*";
+        } if(map.get("_all") != null) {
+            return "_all";
+        }
+        
+        return null;
     }
 }

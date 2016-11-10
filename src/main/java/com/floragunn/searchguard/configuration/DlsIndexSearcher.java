@@ -23,7 +23,6 @@ import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.Weight;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.engine.EngineConfig;
@@ -34,58 +33,52 @@ import org.elasticsearch.index.query.QueryParsingException;
 class DlsIndexSearcher extends IndexSearcher {
 
     private final ESLogger log = Loggers.getLogger(this.getClass());
-    private final Set<String> unparsedDlsQueries;
-    private final IndexSearcher original;
-    private final IndexQueryParserService parser;
     private final List<ParsedQuery> parsedDlsQueries = new ArrayList<ParsedQuery>();
-    
+    private volatile boolean rewritten;
+
     DlsIndexSearcher(IndexSearcher original, EngineConfig engineConfig, IndexQueryParserService parser, Set<String> unparsedDlsQueries) {
         super(original.getIndexReader());
-        this.original = original;
-        this.unparsedDlsQueries = unparsedDlsQueries;
-        this.parser = parser;
-        this.setQueryCache(null); //engineConfig.getQueryCache()
+        this.setQueryCache(null); // engineConfig.getQueryCache()
         this.setQueryCachingPolicy(engineConfig.getQueryCachingPolicy());
         this.setSimilarity(engineConfig.getSimilarity());
-    }
-    
-    @Override
-    public Weight createWeight(Query query, boolean needsScores) throws IOException {
-        
+
         try {
-            
             for (final String unparsedDlsQuery : unparsedDlsQueries) {
                 if (log.isTraceEnabled()) {
-                    log.trace("parse: {}", query);
+                    log.trace("parse: {}", unparsedDlsQuery);
                 }
                 parsedDlsQueries.add(parser.parse(unparsedDlsQuery));
             }
         } catch (final QueryParsingException e) {
-            throw new IOException(e);
+            throw e;
         }
-
-        return original.createWeight(rewriteToDls(query, needsScores), needsScores);
     }
 
+    @Override
+    public Query rewrite(Query original) throws IOException {
 
-    private Query rewriteToDls(Query original, boolean needsScores) throws IOException {
-
-        if(!parsedDlsQueries.isEmpty()) {
-            
-            BooleanQuery.Builder boolQueryBuilder = new BooleanQuery.Builder();
-            boolQueryBuilder.add(original, needsScores?Occur.MUST:Occur.FILTER);
-            BooleanQuery.Builder dlsQueryBuilder = new BooleanQuery.Builder();
-            dlsQueryBuilder.setMinimumNumberShouldMatch(1);
-            
-            for (ParsedQuery dlsQuery: parsedDlsQueries) {
-                dlsQueryBuilder.add(dlsQuery.query(), Occur.SHOULD);
-            }
-            
-            boolQueryBuilder.add(dlsQueryBuilder.build(), needsScores?Occur.MUST:Occur.FILTER);
-            return boolQueryBuilder.build();
+        if (rewritten || parsedDlsQueries == null || parsedDlsQueries.isEmpty()) {
+            return super.rewrite(original);
         }
-        
-        
-        return original;
+
+        final Query r = super.rewrite(rewriteToDls(original));
+        rewritten = true;
+        return r;
+    }
+
+    private Query rewriteToDls(Query original) throws IOException {
+
+        BooleanQuery.Builder boolQueryBuilder = new BooleanQuery.Builder();
+        boolQueryBuilder.add(original, Occur.MUST);
+        BooleanQuery.Builder dlsQueryBuilder = new BooleanQuery.Builder();
+        dlsQueryBuilder.setMinimumNumberShouldMatch(1);
+
+        for (ParsedQuery dlsQuery : parsedDlsQueries) {
+            dlsQueryBuilder.add(dlsQuery.query(), Occur.SHOULD);
+        }
+
+        boolQueryBuilder.add(dlsQueryBuilder.build(), Occur.MUST);
+        return boolQueryBuilder.build();
+
     }
 }

@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.configuration;
 
+import java.util.Map;
 import java.util.Set;
 
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -37,8 +38,8 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
      * @return false on error
      */
     public boolean invoke(final ActionRequest<?> request, final ActionListener listener, ThreadContext threadContext) {
-        final Set<String> allowedFlsFields = (Set<String>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_FLS_FIELDS);
-        final Set<String> queries = (Set<String>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_DLS_QUERY);
+        final Map<String,Set<String>> allowedFlsFields = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_FLS_FIELDS);
+        final Map<String,Set<String>> queries = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_DLS_QUERY);     
         
         if(allowedFlsFields != null && !allowedFlsFields.isEmpty()) {
             

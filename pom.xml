@@ -35,7 +35,7 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>5.0.0-8-SNAPSHOT</sg2.version>
+    <sg2.version>5.0.0-8</sg2.version>
     <elasticsearch.version>5.0.0</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>
@@ -72,7 +72,7 @@
   <dependencies>
     <dependency>
       <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-2</artifactId>
+      <artifactId>search-guard-5</artifactId>
       <version>${sg2.version}</version>
       <scope>provided</scope>
     </dependency>

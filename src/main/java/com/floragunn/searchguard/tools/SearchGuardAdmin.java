@@ -549,7 +549,7 @@ public class SearchGuardAdmin {
         }
 
         public TransportClientImpl(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, defaultSettings, plugins);
+            super(settings, defaultSettings, plugins, null);
         }       
     }
     

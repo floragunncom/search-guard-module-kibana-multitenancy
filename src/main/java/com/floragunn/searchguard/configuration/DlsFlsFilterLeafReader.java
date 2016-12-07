@@ -14,6 +14,11 @@
 
 package com.floragunn.searchguard.configuration;
 
+//This implementation is based on
+//https://github.com/apache/lucene-solr/blob/branch_6_3/lucene/test-framework/src/java/org/apache/lucene/index/FieldFilterLeafReader.java
+//https://github.com/apache/lucene-solr/blob/branch_6_3/lucene/misc/src/java/org/apache/lucene/index/PKIndexSplitter.java
+//https://github.com/salyh/elasticsearch-security-plugin/blob/4b53974a43b270ae77ebe79d635e2484230c9d01/src/main/java/org/elasticsearch/plugins/security/filter/DlsWriteFilter.java
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -35,7 +40,14 @@ import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.index.StoredFieldVisitor;
 import org.apache.lucene.index.Terms;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.Weight;
+import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.FixedBitSet;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
@@ -48,53 +60,108 @@ import com.floragunn.searchguard.support.WildcardMatcher;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 
-class FlsFilterLeafReader extends FilterLeafReader {
+class DlsFlsFilterLeafReader extends FilterLeafReader {
 
     private final String[] includes;
     private final FieldInfos flsFieldInfos;
+    private final Bits liveDocs;
+    private final int numDocs;
+    private final boolean flsEnabled;
+    private final boolean dlsEnabled;
 
-    FlsFilterLeafReader(final LeafReader delegate, final Set<String> includes) {
+    DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includes, final Query dlsQuery) {
         super(delegate);
-        this.includes = includes.toArray(new String[0]);
         
-        final List<FieldInfo> fi = new ArrayList<FieldInfo>();
-        for (final FieldInfo info : delegate.getFieldInfos()) {
-            if (WildcardMatcher.matchAny(this.includes, info.name)) {
-                fi.add(info);
+        flsEnabled = includes != null && !includes.isEmpty();
+        dlsEnabled = dlsQuery != null;
+        
+        if(flsEnabled) {
+            this.includes = includes.toArray(new String[0]);
+            
+            final List<FieldInfo> fi = new ArrayList<FieldInfo>();
+            for (final FieldInfo info : delegate.getFieldInfos()) {
+                if (WildcardMatcher.matchAny(this.includes, info.name)) {
+                    fi.add(info);
+                }
             }
+    
+            this.flsFieldInfos = new FieldInfos(fi.toArray(new FieldInfo[0]));
+        } else {
+            this.includes = null;
+            this.flsFieldInfos = null;
         }
-
         
-        flsFieldInfos = new FieldInfos(fi.toArray(new FieldInfo[0]));
+        
+        if(dlsEnabled) {
+            try {
+                
+                //borrowed from Apache Lucene (Copyright Apache Software Foundation (ASF))
+                final IndexSearcher searcher = new IndexSearcher(this);
+                searcher.setQueryCache(null);
+                final boolean needsScores = false;
+                final Weight preserveWeight = searcher.createNormalizedWeight(dlsQuery, needsScores);
+                
+                final int maxDoc = in.maxDoc();
+                final FixedBitSet bits = new FixedBitSet(maxDoc);
+                final Scorer preverveScorer = preserveWeight.scorer(this.getContext());
+                if (preverveScorer != null) {
+                  bits.or(preverveScorer.iterator());
+                }
+                
+                if (in.hasDeletions()) {
+                    final Bits oldLiveDocs = in.getLiveDocs();
+                    assert oldLiveDocs != null;
+                    final DocIdSetIterator it = new BitSetIterator(bits, 0L);
+                    for (int i = it.nextDoc(); i != DocIdSetIterator.NO_MORE_DOCS; i = it.nextDoc()) {
+                      if (!oldLiveDocs.get(i)) {
+                        bits.clear(i);
+                      }
+                    }
+                  }
+
+                  this.liveDocs = bits;
+                  this.numDocs = bits.cardinality();
+                
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            this.liveDocs = null;
+            this.numDocs = -1;
+        }
     }
 
-    private static class FlsSubReaderWrapper extends FilterDirectoryReader.SubReaderWrapper {
+    private static class DlsFlsSubReaderWrapper extends FilterDirectoryReader.SubReaderWrapper {
 
         private final Set<String> includes;
+        private final Query dlsQuery;
 
-        public FlsSubReaderWrapper(final Set<String> includes) {
+        public DlsFlsSubReaderWrapper(final Set<String> includes, final Query dlsQuery) {
             this.includes = includes;
+            this.dlsQuery = dlsQuery;
         }
 
         @Override
         public LeafReader wrap(final LeafReader reader) {
-            return new FlsFilterLeafReader(reader, includes);
+            return new DlsFlsFilterLeafReader(reader, includes, dlsQuery);
         }
 
     }
 
-    static class FlsDirectoryReader extends FilterDirectoryReader {
+    static class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
         private final Set<String> includes;
+        private final Query dlsQuery;
 
-        public FlsDirectoryReader(final DirectoryReader in, final Set<String> includes) throws IOException {
-            super(in, new FlsSubReaderWrapper(includes));
+        public DlsFlsDirectoryReader(final DirectoryReader in, final Set<String> includes, final Query dlsQuery) throws IOException {
+            super(in, new DlsFlsSubReaderWrapper(includes, dlsQuery));
             this.includes = includes;
+            this.dlsQuery = dlsQuery;
         }
 
         @Override
         protected DirectoryReader doWrapDirectoryReader(final DirectoryReader in) throws IOException {
-            return new FlsDirectoryReader(in, includes);
+            return new DlsFlsDirectoryReader(in, includes, dlsQuery);
         }
 
         @Override
@@ -105,21 +172,40 @@ class FlsFilterLeafReader extends FilterLeafReader {
 
     @Override
     public void document(final int docID, final StoredFieldVisitor visitor) throws IOException {
-        in.document(docID, new FlsStoredFieldVisitor(visitor));
+        if(flsEnabled) {
+            in.document(docID, new FlsStoredFieldVisitor(visitor));
+        } else {
+            in.document(docID, visitor);
+        }
     }
 
     private boolean isFls(final String name) {
+        
+        if(!flsEnabled) {
+            return true;
+        }
+        
         return flsFieldInfos.fieldInfo(name) != null;
     }
 
     @Override
     public FieldInfos getFieldInfos() {
+        
+        if(!flsEnabled) {
+            return in.getFieldInfos();
+        }
+        
         return flsFieldInfos;
     }
 
     @Override
     public Fields fields() throws IOException {
         final Fields fields = in.fields();
+        
+        if(!flsEnabled) {
+            return fields;
+        }
+        
         return new Fields() {
 
             @Override
@@ -128,7 +214,6 @@ class FlsFilterLeafReader extends FilterLeafReader {
 
                     @Override
                     public boolean apply(final String input) {
-                        // TODO Auto-generated method stub
                         return isFls(input);
                     }
                 });
@@ -225,9 +310,9 @@ class FlsFilterLeafReader extends FilterLeafReader {
 
     @Override
     public Fields getTermVectors(final int docID) throws IOException {
-        final Fields fields = super.getTermVectors(docID);
+        final Fields fields = in.getTermVectors(docID);
 
-        if (fields == null) {
+        if (!flsEnabled || fields == null) {
             return fields;
         }
 
@@ -301,6 +386,26 @@ class FlsFilterLeafReader extends FilterLeafReader {
     @Override
     public Object getCoreCacheKey() {
         return in.getCoreCacheKey();
+    }
+
+    @Override
+    public Bits getLiveDocs() {
+        
+        if(dlsEnabled) {
+            return liveDocs;
+        }
+        
+        return in.getLiveDocs();
+    }
+
+    @Override
+    public int numDocs() {
+        
+        if(dlsEnabled) {
+            return numDocs;
+        }
+        
+        return in.numDocs();
     }
 
 }

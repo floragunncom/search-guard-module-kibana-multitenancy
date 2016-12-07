@@ -1,0 +1,27 @@
+sg_all_access:
+  users:
+    - admin
+    
+sg_public:
+  users:
+    - '*'
+
+sg_midsized_deals:
+  users:
+    - dept_manager
+    
+sg_deals_without_amount:
+  users:
+    - dept_manager_fls
+    
+sg_dls_without_field_perm:
+  users:
+    - dept_manager_fls_dls
+
+sg_dls_multi1:
+  users:
+    - dept_manager_multi
+
+sg_dls_multi2:
+  users:
+    - dept_manager_multi

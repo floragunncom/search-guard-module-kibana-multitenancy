@@ -15,7 +15,7 @@
 
   <groupId>com.floragunn</groupId>
   <artifactId>dlic-search-guard-module-dlsfls</artifactId>
-  <version>2.4-3-SNAPSHOT</version>
+  <version>2.4-5-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Search Guard</name>
@@ -35,8 +35,9 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>2.4.0.6</sg2.version>
-    <elasticsearch.version>2.4.0</elasticsearch.version>
+    <sg2.version>2.4.1.8</sg2.version>
+    <sgssl.version>2.4.1.16</sgssl.version>
+    <elasticsearch.version>2.4.1</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>
 
@@ -76,6 +77,13 @@
       <version>${sg2.version}</version>
       <scope>provided</scope>
     </dependency>
+    
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-ssl</artifactId>
+      <version>${sgssl.version}</version>
+      <scope>provided</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.elasticsearch</groupId>
@@ -93,6 +101,13 @@
       <version>1.3</version>
       <scope>test</scope>
     </dependency>
+    
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.4</version>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>junit</groupId>
@@ -107,6 +122,13 @@
       <version>1.7.7</version>
       <scope>test</scope>
     </dependency>
+    
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>fluent-hc</artifactId>
+      <version>4.3.4</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -119,6 +141,17 @@
         </includes>
       </testResource>
     </testResources>
+    <resources>
+      <resource>
+        <directory>${basedir}</directory>
+        <filtering>false</filtering>
+        <includes>
+          <include>LICENSE</include>
+          <include>NOTICE.txt</include>
+          <include>THIRD-PARTY.txt</include>
+        </includes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
@@ -230,7 +263,6 @@
         <artifactId>maven-assembly-plugin</artifactId>
         <version>2.4</version>
         <configuration>
-
           <outputDirectory>${project.build.directory}</outputDirectory>
           <descriptorRefs>
             <descriptorRef>jar-with-dependencies</descriptorRef>

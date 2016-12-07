@@ -1,0 +1,102 @@
+sg_all_access:
+  cluster:
+    - '*'
+  indices:
+    '*':
+      '*':  
+        - '*'
+
+sg_midsized_deals:
+  cluster:
+    - '*'
+  indices:
+    'deals':
+       '*':  
+         - READ
+       #_dls_: '{"term" : {"${user.name}" : "12"}}'
+       _dls_: | 
+                 {
+                   "range" : {
+                      "amount" : {
+                          "gte" : 1000,
+                          "lte" : 20000
+                      }
+                    }
+                 }
+                  
+       #_fls_:
+       #  - fieldx
+       #  - field2.b
+       #  - field3.m.*
+       
+sg_deals_without_amount:
+  cluster:
+    - '*'
+  indices:
+    'deals':
+       '*':  
+         - '*'
+       _fls_:
+         - 'customer.*'
+         - zip
+        
+sg_dls_without_field_perm:
+  cluster:
+    - '*'
+  indices:
+    'deals':
+       '*':  
+         - READ
+       _fls_:
+         - 'customer.*'
+         - zip
+       _dls_: | 
+                 {
+                   "range" : {
+                      "amount" : {
+                          "gte" : 1000,
+                          "lte" : 20000
+                      }
+                    }
+                 }
+                 
+sg_dls_multi1:
+  cluster:
+    - '*'
+  indices:
+    'deals':
+       '*':  
+         - READ
+       _fls_:
+         - 'customer.*'
+         - amount
+       _dls_: | 
+                 {
+                   "range" : {
+                      "amount" : {
+                          "gte" : 1000,
+                          "lte" : 20000
+                      }
+                    }
+                 }
+
+sg_dls_multi2:
+  cluster:
+    - '*'
+  indices:
+    'deals':
+       '*':  
+         - READ
+       _fls_:
+         - 'customer.*'
+         - amount
+         - zip
+       _dls_: | 
+                 {
+                   "range" : {
+                      "amount" : {
+                          "gte" : 5,
+                          "lte" : 300
+                      }
+                    }
+                 }

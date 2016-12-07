@@ -70,6 +70,10 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             if(request instanceof RealtimeRequest) {
                 ((RealtimeRequest) request).realtime(Boolean.FALSE);
             }
+            
+            if(request instanceof SearchRequest) {
+                ((SearchRequest)request).requestCache(Boolean.FALSE);
+            }
         }
         
         return true;

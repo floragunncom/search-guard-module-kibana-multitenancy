@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.engine.EngineConfig;
@@ -36,7 +37,8 @@ import com.google.common.collect.Sets;
 public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearcherWrapper {
 
     private final IndexQueryParserService parser;
-    private final Set<String> metaFields;
+    private final static Set<String> metaFields = Sets.union(Sets.newHashSet("_source", "_version"), 
+            Sets.newHashSet(MapperService.getAllMetaFields()));
 
     public static void printLicenseInfo() {
         System.out.println("***************************************************");
@@ -57,82 +59,56 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
             final Settings indexSettings, final AdminDNs admindns, final IndexQueryParserService parser) {
         super(shardId, indicesLifecycle, indexSettings, admindns);
         this.parser = parser;
-        metaFields = Sets.union(Sets.newHashSet("_source", "_version"), Sets.newHashSet(MapperService.getAllMetaFields()));
     }
 
     @Override
     protected DirectoryReader dlsFlsWrap(final DirectoryReader reader) throws IOException {
 
-        final Set<String> flsFields = new HashSet<String>(metaFields);
+        
         final RequestHolder current = RequestHolder.current();
 
         if (current != null && current.getRequest() != null) {
 
             final Map<String,Set<String>> allowedFlsFields = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(current.getRequest(), "_sg_fls_fields");
+            final Map<String,Set<String>> queries = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(current.getRequest(), "_sg_dls_query");
             
-            final String eval = evalMap(allowedFlsFields, shardId.getIndex());
+            final String flsEval = evalMap(allowedFlsFields, shardId.getIndex());
+            final String dlsEval = evalMap(queries, shardId.getIndex());
             
-            if (eval != null) {
-                flsFields.addAll(allowedFlsFields.get(eval));
-                if (log.isTraceEnabled()) {
-                    log.trace("Found! _sg_fls_fields for {}", current.getRequest().getClass());
-                }
-            } else {
-                
-                if (log.isTraceEnabled()) {
-                    log.trace("No _sg_fls_fields for {}", current.getRequest().getClass());
-                }
-                
-                return reader;
-            }
+            Set<String> flsFields = null;
+            Query dlsQuery = null;
+            
+            if (flsEval != null) {
+                flsFields = new HashSet<String>(metaFields);
+                flsFields.addAll(allowedFlsFields.get(flsEval));
+            } 
+            
+            if (dlsEval != null) {
+                dlsQuery = DlsQueryParser.parse(queries.get(dlsEval), parser);
+            } 
 
+            return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields, dlsQuery);
+            
         } else {
             
             if (log.isTraceEnabled()) {
-                log.trace("No context/request for fls");
+                log.trace("No context/request");
             }
 
         }
         
-        return new FlsFilterLeafReader.FlsDirectoryReader(reader, flsFields);
+        return reader;
 
     }
 
     @Override
     protected IndexSearcher dlsFlsWrap(final EngineConfig engineConfig, final IndexSearcher searcher) throws EngineException {
-
-        final RequestHolder current = RequestHolder.current();
-        Exception ex = null;
-
-        if (current != null && current.getRequest() != null) {
-            
-            final Map<String,Set<String>> queries = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(current.getRequest(), "_sg_dls_query");
-            
-            final String eval = evalMap(queries, shardId.getIndex());
-            
-            if (eval != null) {
-
-                if (log.isTraceEnabled()) {
-                    log.trace("Found! _sg_dls_query for {}", current.getRequest().getClass());
-                }
-
-                return new DlsIndexSearcher(searcher, engineConfig, parser, queries.get(eval));
-               
-            } else {
-                
-                if (log.isTraceEnabled()) {
-                    log.trace("No _sg_dls_query for {}", current.getRequest().getClass());
-                }
-                
-                return searcher;
-            }
-        } else {
-            if (log.isTraceEnabled()) {
-                log.trace("No context/request for dls");
-            }
+        
+        if(searcher.getIndexReader().getClass() != DlsFlsFilterLeafReader.DlsFlsDirectoryReader.class) {
+            throw new RuntimeException("Unexpected searcher class: "+searcher.getIndexReader().getClass());
         }
-
-        throw new EngineException(shardId, "Unable to handle document level security due to: "+(ex==null?"":ex.toString()));
+        
+        return searcher;
     }
     
     private String evalMap(Map<String,Set<String>> map, String index) {

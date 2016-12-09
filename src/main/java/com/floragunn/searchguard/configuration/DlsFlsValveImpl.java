@@ -40,7 +40,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     public boolean invoke(final ActionRequest<?> request, final ActionListener listener, ThreadContext threadContext) {
         final Map<String,Set<String>> allowedFlsFields = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_FLS_FIELDS);
         final Map<String,Set<String>> queries = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_DLS_QUERY);     
-        
+
         if(allowedFlsFields != null && !allowedFlsFields.isEmpty()) {
             
             if(request instanceof RealtimeRequest) {
@@ -70,6 +70,10 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         if(queries != null && !queries.isEmpty()) {
             if(request instanceof RealtimeRequest) {
                 ((RealtimeRequest) request).realtime(Boolean.FALSE);
+            }
+            
+            if(request instanceof SearchRequest) {
+                ((SearchRequest)request).requestCache(Boolean.FALSE);
             }
         }
         

@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.IndexSearcher;
+
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.engine.EngineException;
@@ -34,7 +35,8 @@ import com.google.common.collect.Sets;
 public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearcherWrapper {
 
     private final QueryShardContext queryShardContext;
-    private final Set<String> metaFields;
+    private final static Set<String> metaFields = Sets.union(Sets.newHashSet("_source", "_version"), 
+            Sets.newHashSet(MapperService.getAllMetaFields()));
 
     public static void printLicenseInfo() {
         System.out.println("***************************************************");
@@ -53,61 +55,45 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
     public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings) {
         super(indexService, settings);
         this.queryShardContext = indexService.newQueryShardContext();
-        metaFields = Sets.union(Sets.newHashSet("_source", "_version"), Sets.newHashSet(MapperService.getAllMetaFields()));
     }
 
     @Override
     protected DirectoryReader dlsFlsWrap(final DirectoryReader reader) throws IOException {
 
-        final Set<String> flsFields = new HashSet<String>(metaFields);
+        Set<String> flsFields = null;
+        Set<String> unparsedDlsQueries = null;
+        
         final Map<String, Set<String>> allowedFlsFields = (Map<String, Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext,
                 ConfigConstants.SG_FLS_FIELDS);
-
-        final String eval = evalMap(allowedFlsFields, index.getName());
-
-        if (eval != null) {
-            flsFields.addAll(allowedFlsFields.get(eval));
-            if (log.isTraceEnabled()) {
-                log.trace("Found! _sg_fls_fields for {}", index.getName());
-            }
-        } else {
-
-            if (log.isTraceEnabled()) {
-                log.trace("No _sg_fls_fields for {}", index.getName());
-            }
-
-            return reader;
-        }
-
-        return new FlsFilterLeafReader.FlsDirectoryReader(reader, flsFields);
-    }
-
-    @Override
-    protected IndexSearcher dlsFlsWrap(final IndexSearcher searcher) throws EngineException {
-
         final Map<String, Set<String>> queries = (Map<String, Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext,
                 ConfigConstants.SG_DLS_QUERY);
 
-        final String eval = evalMap(queries, index.getName());
+        final String flsEval = evalMap(allowedFlsFields, index.getName());
+        final String dlsEval = evalMap(queries, index.getName());
 
-        if (eval != null) {
-
-            if (log.isTraceEnabled()) {
-                log.trace("Found! _sg_dls_query for {}", index.getName());
-            }
-
-            return new DlsIndexSearcher(searcher, queryShardContext, queries.get(eval));
-
-        } else {
-
-            if (log.isTraceEnabled()) {
-                log.trace("No _sg_dls_query for {}", index.getName());
-            }
-
-            return searcher;
+        if (flsEval != null) { 
+            flsFields = new HashSet<String>(metaFields);
+            flsFields.addAll(allowedFlsFields.get(flsEval));
         }
+        
+        if (dlsEval != null) { 
+            unparsedDlsQueries = queries.get(dlsEval);
+        }
+        
+        return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields, DlsQueryParser.parse(unparsedDlsQueries, queryShardContext));
     }
+        
+        
+    @Override
+    protected IndexSearcher dlsFlsWrap(final IndexSearcher searcher) throws EngineException {
 
+        if(searcher.getIndexReader().getClass() != DlsFlsFilterLeafReader.DlsFlsDirectoryReader.class) {
+            throw new RuntimeException("Unexpected index reader class "+searcher.getIndexReader().getClass());
+        }
+        
+        return searcher;
+    }
+        
     private String evalMap(Map<String, Set<String>> map, String index) {
 
         if (map == null) {

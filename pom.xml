@@ -36,7 +36,7 @@
 
   <properties>
     <sg2.version>2.4.1.9-SNAPSHOT</sg2.version>
-    <sgssl.version>2.4.1.16</sgssl.version>
+    <sgssl.version>2.4.1.19</sgssl.version>
     <elasticsearch.version>2.4.1</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>

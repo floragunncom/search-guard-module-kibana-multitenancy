@@ -239,7 +239,7 @@ public class BackendRegistry implements ConfigChangeListener {
 
     public boolean authenticate(final TransportRequest request, final TransportChannel channel) throws ElasticsearchSecurityException {
         
-        boolean impersonated = impersonate(request, channel);
+        impersonate(request, channel);
 
         final User user = request.getFromContext(ConfigConstants.SG_USER);
         
@@ -399,8 +399,8 @@ public class BackendRegistry implements ConfigChangeListener {
         }
         
         if (!isInitialized()) {
-            log.error("Not yet initialized");
-            channel.sendResponse(new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE, "Search Guard not initialized (SG11)"));
+            log.error("Not yet initialized (you may need to run sgadmin)");
+            channel.sendResponse(new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE, "Search Guard not initialized (SG11). See https://github.com/floragunncom/search-guard-docs/blob/master/sgadmin.md"));
             return false;
         }
         

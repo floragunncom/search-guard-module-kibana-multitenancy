@@ -37,7 +37,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
      * @param listener
      * @return false on error
      */
-    public boolean invoke(final ActionRequest<?> request, final ActionListener listener, ThreadContext threadContext) {
+    public boolean invoke(final ActionRequest request, final ActionListener listener, ThreadContext threadContext) {
         final Map<String,Set<String>> allowedFlsFields = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_FLS_FIELDS);
         final Map<String,Set<String>> queries = (Map<String,Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext, ConfigConstants.SG_DLS_QUERY);     
 
@@ -53,7 +53,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             }
             
             if(request instanceof BulkRequest) {
-                for(ActionRequest<?> inner:((BulkRequest) request).requests()) {
+                for(ActionRequest inner:((BulkRequest) request).requests()) {
                     if(inner instanceof UpdateRequest) {
                         listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS is activated"));
                         return false;

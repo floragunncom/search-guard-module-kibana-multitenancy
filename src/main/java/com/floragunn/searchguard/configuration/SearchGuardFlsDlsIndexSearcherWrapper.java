@@ -54,7 +54,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
 
     public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings) {
         super(indexService, settings);
-        this.queryShardContext = indexService.newQueryShardContext();
+        this.queryShardContext = indexService.newQueryShardContext(0, null, null);
     }
 
     @Override

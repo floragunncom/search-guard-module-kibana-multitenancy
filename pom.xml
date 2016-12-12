@@ -35,7 +35,7 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>5.1.1-9-SNAPSHOT</sg2.version>
+    <sg2.version>5.1.1-9</sg2.version>
     <elasticsearch.version>5.1.1</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>

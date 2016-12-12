@@ -91,6 +91,7 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin {
     //TODO 5mg check tribe
     public SearchGuardPlugin(final Settings settings) {
         super();
+        log.info("Clustername: {}", settings.get("cluster.name","elasticsearch"));
         if(!settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED, true)) {
             throw new IllegalStateException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED+" must be set to 'true'");
         }
@@ -101,7 +102,7 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin {
             sm.checkPermission(new SpecialPermission());
         }
 
-        //TODO check initialize native netty open ssl libs still neccessary
+        //TODO check initialize native netty open ssl libs still necessary
         AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
@@ -304,6 +305,10 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin {
         settings.add(Setting.boolSetting("searchguard.audit.config.enable_ssl", false, Property.NodeScope, Property.Filtered));
         settings.add(Setting.boolSetting("searchguard.audit.config.verify_hostnames", true, Property.NodeScope, Property.Filtered));
         settings.add(Setting.boolSetting("searchguard.audit.config.enable_ssl_client_auth", false, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString("searchguard.audit.config.webhook_url", Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString("searchguard.audit.config.webhook_format", Property.NodeScope, Property.Filtered));
+ 
+        settings.add(Setting.simpleString("searchguard.cert.oid", Property.NodeScope, Property.Filtered));
         
         //SSL
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CLIENTAUTH_MODE, Property.NodeScope, Property.Filtered));

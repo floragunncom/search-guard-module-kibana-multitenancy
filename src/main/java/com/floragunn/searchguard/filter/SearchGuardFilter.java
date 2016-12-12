@@ -33,7 +33,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -131,7 +130,8 @@ public class SearchGuardFilter implements ActionFilter {
 
         if (!eval.isInitialized()) {
             log.error("Search Guard not initialized (SG11) for {}", action);
-            listener.onFailure(new ElasticsearchSecurityException("Search Guard not initialized (SG11) for " + action, RestStatus.SERVICE_UNAVAILABLE));
+            listener.onFailure(new ElasticsearchSecurityException("Search Guard not initialized (SG11) for " 
+            + action+". See https://github.com/floragunncom/search-guard-docs/blob/master/sgadmin.md", RestStatus.SERVICE_UNAVAILABLE));
             return;
         }
 

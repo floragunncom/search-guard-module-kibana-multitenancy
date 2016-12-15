@@ -25,3 +25,7 @@ sg_dls_multi1:
 sg_dls_multi2:
   users:
     - dept_manager_multi
+    
+sg_fls_fields:
+  users:
+    - fls_fields

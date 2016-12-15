@@ -12,3 +12,6 @@ dept_manager_fls_dls:
 dept_manager_multi:
   #password
   hash: $2a$12$YCBrpxYyFusK609FurY5Ee3BlmuzWw0qHwpwqEyNhM2.XnQY3Bxpe
+fls_fields:
+  #password
+  hash: $2a$12$YCBrpxYyFusK609FurY5Ee3BlmuzWw0qHwpwqEyNhM2.XnQY3Bxpe

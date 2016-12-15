@@ -100,3 +100,17 @@ sg_dls_multi2:
                       }
                     }
                  }
+                 
+sg_fls_fields:
+  cluster:
+    - '*'
+  indices:
+    'deals':
+       '*':  
+         - READ
+       _fls_:
+         - 'nonexistant'
+         - amount
+         - zip
+         - '*field*'
+         #- '*timestamp'

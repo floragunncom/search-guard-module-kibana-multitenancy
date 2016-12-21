@@ -114,3 +114,12 @@ sg_fls_fields:
          - zip
          - '*field*'
          #- '*timestamp'
+
+sg_logstash:
+  indices:
+    'logstash-*':
+       '*':  
+         - '*'
+       _dls_: '{"term" : {"msgid" : "12"}}'
+       _fls_:
+         - msgid

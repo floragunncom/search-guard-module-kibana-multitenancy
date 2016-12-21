@@ -29,3 +29,7 @@ sg_dls_multi2:
 sg_fls_fields:
   users:
     - fls_fields
+    
+sg_logstash:
+  users:
+    - logstash

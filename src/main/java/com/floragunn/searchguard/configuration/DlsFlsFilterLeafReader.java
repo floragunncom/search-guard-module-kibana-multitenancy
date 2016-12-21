@@ -77,10 +77,13 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         
         if(flsEnabled) {
             this.includes = includes.toArray(new String[0]);
+            final FieldInfos infos = delegate.getFieldInfos();
             
-            final List<FieldInfo> fi = new ArrayList<FieldInfo>();
-            for (final FieldInfo info : delegate.getFieldInfos()) {
-                if (WildcardMatcher.matchAny(this.includes, info.name)) {
+            final List<FieldInfo> fi = new ArrayList<FieldInfo>(infos.size());
+            for (final FieldInfo info : infos) {
+                final String fname = info.name;
+                if ( (!WildcardMatcher.containsWildcard(fname) && includes.contains(fname)) 
+                        || WildcardMatcher.matchAny(this.includes, fname)) {
                     fi.add(info);
                 }
             }

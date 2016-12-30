@@ -123,3 +123,17 @@ sg_logstash:
        _dls_: '{"term" : {"msgid" : "12"}}'
        _fls_:
          - msgid
+
+sg_fls_fields_wc:
+  cluster:
+    - '*'
+  indices:
+    'de*':
+       '*':  
+         - READ
+       _fls_:
+         - 'nonexistant'
+         - amount
+         - zip
+         - '*field*'
+         #- '*timestamp'

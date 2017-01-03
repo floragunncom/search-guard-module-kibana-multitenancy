@@ -535,11 +535,16 @@ public class BackendRegistry implements ConfigChangeListener {
             
         }//end for
         
+
         if(!authenticated) {
             //if(httpAuthenticator.reRequestAuthentication(channel, null)) {
             //  return false;
             //}
             //no reRequest possible
+            
+            if(log.isDebugEnabled()) {
+                log.debug("User not authenticated after checking {} auth domains", authDomains.size());
+            }
             
             if(authCredenetials == null && anonymousAuthEnabled) {
                 request.putInContext(ConfigConstants.SG_USER, User.ANONYMOUS);
@@ -550,7 +555,18 @@ public class BackendRegistry implements ConfigChangeListener {
             }
             
             if(firstChallengingHttpAuthenticator != null) {
+                
+                if(log.isDebugEnabled()) {
+                    log.debug("Rerequest with {}", firstChallengingHttpAuthenticator.getClass());
+                }
+                
                 if(firstChallengingHttpAuthenticator.reRequestAuthentication(channel, null)) {
+                    
+                    if(log.isDebugEnabled()) {
+                        log.debug("Rerequest {} failed", firstChallengingHttpAuthenticator.getClass());
+                    }
+                    
+                    auditLog.logFailedLogin(authCredenetials == null ? null:authCredenetials.getUsername(), request);
                     return false;
                 }
             }

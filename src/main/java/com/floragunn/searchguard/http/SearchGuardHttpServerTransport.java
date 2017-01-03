@@ -23,6 +23,8 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.http.HttpChannel;
+import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.netty.NettyHttpRequest;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
@@ -53,7 +55,7 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
     }
 
     @Override
-    public void dispatchRequest(final RestRequest request, final RestChannel channel) {
+    public void dispatchRequest(final HttpRequest request, final HttpChannel channel) {
         
         try {
             HeaderHelper.checkSGHeader(request);

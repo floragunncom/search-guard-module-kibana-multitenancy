@@ -37,3 +37,7 @@ sg_logstash:
 sg_fls_fields_wc:
   users:
     - fls_fields_wc
+    
+sg_regex:
+  users:
+    - regex

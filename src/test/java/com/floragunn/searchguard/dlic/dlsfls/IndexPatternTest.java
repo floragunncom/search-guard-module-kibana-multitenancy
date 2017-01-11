@@ -101,4 +101,30 @@ public class IndexPatternTest extends AbstractDlsFlsTest{
         Assert.assertFalse(res.getBody().contains("mymsg"));
         Assert.assertTrue(res.getBody().contains("msgid"));
     }
+    
+    @Test
+    public void testSearchWcRegex() throws Exception {
+        
+        setup();
+
+        HttpResponse res;
+
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-20*/logs/_search?pretty", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("admin", "admin")))).getStatusCode());
+        System.out.println(res.getBody());
+        Assert.assertTrue(res.getBody().contains("\"total\" : 4,\n    \"max_"));
+        Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+        Assert.assertTrue(res.getBody().contains("ipaddr"));
+        Assert.assertTrue(res.getBody().contains("message"));
+        Assert.assertTrue(res.getBody().contains("mymsg"));
+        Assert.assertTrue(res.getBody().contains("msgid"));
+        
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-20*/logs/_search?pretty", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("regex", "password")))).getStatusCode());
+        System.out.println(res.getBody());
+        Assert.assertTrue(res.getBody().contains("\"total\" : 2,\n    \"max_"));
+        Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+        Assert.assertFalse(res.getBody().contains("ipaddr"));
+        Assert.assertFalse(res.getBody().contains("message"));
+        Assert.assertFalse(res.getBody().contains("mymsg"));
+        Assert.assertTrue(res.getBody().contains("msgid"));
+    }
 }

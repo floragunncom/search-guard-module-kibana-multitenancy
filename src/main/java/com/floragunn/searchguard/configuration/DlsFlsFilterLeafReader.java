@@ -20,9 +20,8 @@ package com.floragunn.searchguard.configuration;
 //https://github.com/salyh/elasticsearch-security-plugin/blob/4b53974a43b270ae77ebe79d635e2484230c9d01/src/main/java/org/elasticsearch/plugins/security/filter/DlsWriteFilter.java
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -56,41 +55,93 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 
-import com.floragunn.searchguard.support.WildcardMatcher;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 
 class DlsFlsFilterLeafReader extends FilterLeafReader {
 
-    private final String[] includes;
+    private static final String[] EMPTY_STRING_ARRAY = new String[0];
+    private final Set<String> includesSet;
+    private final Set<String> excludesSet;
     private final FieldInfos flsFieldInfos;
     private final Bits liveDocs;
     private final int numDocs;
     private final boolean flsEnabled;
     private final boolean dlsEnabled;
+    private String[] includes;
+    private String[] excludes;
+    private boolean canOptimize = true;
 
-    DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includes, final Query dlsQuery) {
+    DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includesExcludes, final Query dlsQuery) {
         super(delegate);
-        
-        flsEnabled = includes != null && !includes.isEmpty();
+        flsEnabled = includesExcludes != null && !includesExcludes.isEmpty();
         dlsEnabled = dlsQuery != null;
         
-        if(flsEnabled) {
-            this.includes = includes.toArray(new String[0]);
+        if (flsEnabled) {
+
             final FieldInfos infos = delegate.getFieldInfos();
-            
-            final List<FieldInfo> fi = new ArrayList<FieldInfo>(infos.size());
-            for (final FieldInfo info : infos) {
-                final String fname = info.name;
-                if ( (!WildcardMatcher.containsWildcard(fname) && includes.contains(fname)) 
-                        || WildcardMatcher.matchAny(this.includes, fname)) {
-                    fi.add(info);
+            this.includesSet = new HashSet<String>(includesExcludes.size());
+            this.excludesSet = new HashSet<String>(includesExcludes.size());
+
+            for (final String incExc : includesExcludes) {
+                if (canOptimize && (incExc.indexOf('.') > -1 || incExc.indexOf('*') > -1)) {
+                    canOptimize = false;
+                }
+
+                final char firstChar = incExc.charAt(0);
+                
+                if (firstChar == '!' || firstChar == '~') {
+                    excludesSet.add(incExc.substring(1));
+                } else {
+                    includesSet.add(incExc);
                 }
             }
-    
-            this.flsFieldInfos = new FieldInfos(fi.toArray(new FieldInfo[0]));
+
+            int i = 0;
+            final FieldInfo[] fa = new FieldInfo[infos.size()];
+
+            if (canOptimize) {
+                if (!excludesSet.isEmpty()) {
+                    for (final FieldInfo info : infos) {
+                        if (!excludesSet.contains(info.name)) {
+                            fa[i++] = info;
+                        }
+                    }
+                } else {
+                    for (final String inc : includesSet) {
+                        FieldInfo f;
+                        if ((f = infos.fieldInfo(inc)) != null) {
+                            fa[i++] = f;
+                        }
+                    }
+                }
+            } else {
+                if (!excludesSet.isEmpty()) {
+                    for (final FieldInfo info : infos) {
+                        if (!WildcardMatcher.matchAny(excludesSet, info.name)) {
+                            fa[i++] = info;
+                        }
+                    }
+
+                    this.excludes = excludesSet.toArray(EMPTY_STRING_ARRAY);
+
+                } else {
+                    for (final FieldInfo info : infos) {
+                        if (WildcardMatcher.matchAny(includesSet, info.name)) {
+                            fa[i++] = info;
+                        }
+                    }
+
+                    this.includes = includesSet.toArray(EMPTY_STRING_ARRAY);
+                }
+            }
+
+            final FieldInfo[] tmp = new FieldInfo[i];
+            System.arraycopy(fa, 0, tmp, 0, i);
+            this.flsFieldInfos = new FieldInfos(tmp);
         } else {
-            this.includes = null;
+            this.includesSet = null;
+            this.excludesSet = null;
             this.flsFieldInfos = null;
         }
         
@@ -256,7 +307,22 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
             if (fieldInfo.name.equals("_source")) {
                 final BytesReference bytesRef = new BytesArray(value);
                 final Tuple<XContentType, Map<String, Object>> bytesRefTuple = XContentHelper.convertToMap(bytesRef, false);
-                final Map<String, Object> filteredSource = XContentMapValues.filter(bytesRefTuple.v2(), includes, null);
+                Map<String, Object> filteredSource = bytesRefTuple.v2();
+                
+                if (!canOptimize) {
+                    if (!excludesSet.isEmpty()) {
+                        filteredSource = XContentMapValues.filter(bytesRefTuple.v2(), null, excludes);
+                    } else {
+                        filteredSource = XContentMapValues.filter(bytesRefTuple.v2(), includes, null);
+                    }
+                } else {
+                    if (!excludesSet.isEmpty()) {
+                        filteredSource.keySet().removeAll(excludesSet);
+                    } else {
+                        filteredSource.keySet().retainAll(includesSet);
+                    }
+                }
+                
                 final XContentBuilder xBuilder = XContentBuilder.builder(bytesRefTuple.v1().xContent()).map(filteredSource);
                 delegate.binaryField(fieldInfo, xBuilder.bytes().toBytes());
             } else {
@@ -264,6 +330,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
             }
         }
 
+        
         @Override
         public Status needsField(final FieldInfo fieldInfo) throws IOException {
             return isFls(fieldInfo.name) ? delegate.needsField(fieldInfo) : Status.NO;
@@ -411,4 +478,13 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         return in.numDocs();
     }
 
+    @Override
+    public LeafReader getDelegate() {
+        return in;
+    }
+
+    @Override
+    public int maxDoc() {
+        return super.maxDoc();
+    }
 }

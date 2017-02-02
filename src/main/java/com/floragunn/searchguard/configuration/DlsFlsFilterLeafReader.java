@@ -415,4 +415,18 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         return in;
     }
 
+    @Override
+    public PointValues getPointValues() {
+        return super.getPointValues();
+    }
+
+    @Override
+    public int maxDoc() {
+        return super.maxDoc();
+    }
+
+    @Override
+    public Sort getIndexSort() {
+        return super.getIndexSort();
+    }
 }

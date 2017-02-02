@@ -21,8 +21,8 @@ import java.util.Set;
 
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.IndexSearcher;
-
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.engine.EngineException;
 import org.elasticsearch.index.mapper.MapperService;
@@ -37,6 +37,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
     private final QueryShardContext queryShardContext;
     private final static Set<String> metaFields = Sets.union(Sets.newHashSet("_source", "_version"), 
             Sets.newHashSet(MapperService.getAllMetaFields()));
+    private final NamedXContentRegistry namedXContentRegistry;
 
     public static void printLicenseInfo() {
         System.out.println("***************************************************");
@@ -55,6 +56,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
     public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings) {
         super(indexService, settings);
         this.queryShardContext = indexService.newQueryShardContext(0, null, null);
+        this.namedXContentRegistry = indexService.xContentRegistry();
     }
 
     @Override
@@ -80,7 +82,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
             unparsedDlsQueries = queries.get(dlsEval);
         }
         
-        return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields, DlsQueryParser.parse(unparsedDlsQueries, queryShardContext));
+        return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields, DlsQueryParser.parse(unparsedDlsQueries, queryShardContext, this.namedXContentRegistry));
     }
         
         

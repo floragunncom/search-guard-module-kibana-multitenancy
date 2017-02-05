@@ -15,7 +15,7 @@
 
   <groupId>com.floragunn</groupId>
   <artifactId>dlic-search-guard-module-dlsfls</artifactId>
-  <version>5.2-5-SNAPSHOT</version>
+  <version>5.2-5</version>
   <packaging>jar</packaging>
 
   <name>Search Guard</name>
@@ -44,7 +44,7 @@
     <url>https://github.com/floragunncom/search-guard-module-dlsfls</url>
     <connection>scm:git:git@github.com:floragunncom/search-guard-module-dlsfls.git</connection>
     <developerConnection>scm:git:git@github.com:floragunncom/search-guard-module-dlsfls.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>v5.2-5</tag>
   </scm>
 
   <issueManagement>

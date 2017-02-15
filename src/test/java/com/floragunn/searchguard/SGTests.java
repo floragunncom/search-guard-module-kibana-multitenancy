@@ -53,7 +53,6 @@ import org.elasticsearch.indices.InvalidIndexNameException;
 import org.elasticsearch.indices.InvalidTypeNameException;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -64,6 +63,7 @@ import org.junit.rules.ExpectedException;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
+import com.floragunn.searchguard.configuration.PrivilegesInterceptorImpl;
 import com.floragunn.searchguard.http.HTTPClientCertAuthenticator;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -106,6 +106,25 @@ public class SGTests extends AbstractUnitTest {
         Assert.assertEquals(3, client().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
         Assert.assertEquals(ClusterHealthStatus.GREEN, client().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
         //Assert.assertEquals(3, client().admin().cluster().nodesInfo(new NodesInfoRequest().all()).actionGet().getNodes().size());
+    }
+    
+    @Test
+    public void testCustomInterclusterRequestEvaluator() throws Exception {
+        
+        final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
+                .put("searchguard.ssl.transport.keystore_filepath", getAbsoluteFilePathFromClassPath("node-0-keystore.jks"))
+                .put("searchguard.ssl.transport.truststore_filepath", getAbsoluteFilePathFromClassPath("truststore.jks"))
+                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
+                .put("searchguard.ssl.transport.resolve_hostname", false)
+                .put(ConfigConstants.SG_INTERCLUSTER_REQUEST_EVALUATOR_CLASS, "com.floragunn.searchguard.AlwaysFalseInterClusterRequestEvaluator")
+                .build();
+
+        startES(settings, 5, 1);
+        Assert.assertEquals(1, client().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
+        Assert.assertEquals(ClusterHealthStatus.GREEN, client().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
     }
 
     @Test
@@ -393,10 +412,8 @@ public class SGTests extends AbstractUnitTest {
             tc.addTransportAddress(new InetSocketTransportAddress(new InetSocketAddress(nodeHost, nodePort)));
             Assert.assertEquals(3, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
 
+            tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
-            //tc.index(new IndexRequest("searchguard").type("dummy")"-.id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("", readYamlContent("sg_config.yml"))).actionGet();
-            
-            //Thread.sleep(5000);
             
             tc.index(new IndexRequest("searchguard").type("config").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("config", readYamlContent("sg_config.yml"))).actionGet();
             tc.index(new IndexRequest("searchguard").type("internalusers").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0").source("internalusers", readYamlContent("sg_internal_users.yml"))).actionGet();
@@ -424,9 +441,10 @@ public class SGTests extends AbstractUnitTest {
             tc.index(new IndexRequest("public").type("legends").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}")).actionGet();
             tc.index(new IndexRequest("public").type("hall_of_fame").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}")).actionGet();
             tc.index(new IndexRequest("public").type("hall_of_fame").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}")).actionGet();
-            
+
             tc.index(new IndexRequest("spock").type("type01").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}")).actionGet();
             tc.index(new IndexRequest("kirk").type("type01").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}")).actionGet();
+            tc.index(new IndexRequest("role01_role02").type("type01").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}")).actionGet();
 
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
@@ -434,7 +452,6 @@ public class SGTests extends AbstractUnitTest {
             
             ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
             Assert.assertEquals(3, cur.getNodes().size());
-            System.out.println(cur.getNodesMap());
         }
         
         System.out.println("------- End INIT ---------");
@@ -481,6 +498,9 @@ public class SGTests extends AbstractUnitTest {
         HttpResponse resc = executeGetRequest("_cat/indices/public",new BasicHeader("Authorization", "Basic "+encodeBasicHeader("bug108", "nagilum")));
         Assert.assertTrue(resc.getBody().contains("green"));
         Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
+        
+        Assert.assertEquals(HttpStatus.SC_OK, executeGetRequest("role01_role02/type01/_search?pretty",new BasicHeader("Authorization", "Basic "+encodeBasicHeader("user_role01_role02_role03", "user_role01_role02_role03"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, executeGetRequest("role01_role02/type01/_search?pretty",new BasicHeader("Authorization", "Basic "+encodeBasicHeader("user_role01", "user_role01"))).getStatusCode());
 
         Assert.assertEquals(HttpStatus.SC_OK, executeGetRequest("spock/type01/_search?pretty",new BasicHeader("Authorization", "Basic "+encodeBasicHeader("spock", "spock"))).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, executeGetRequest("spock/type01/_search?pretty",new BasicHeader("Authorization", "Basic "+encodeBasicHeader("kirk", "kirk"))).getStatusCode());
@@ -521,7 +541,7 @@ public class SGTests extends AbstractUnitTest {
         Assert.assertEquals(HttpStatus.SC_OK, executeGetRequest("starfleet/ships/_search?pretty", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("worf", "worf"))).getStatusCode());
         HttpResponse res = executeGetRequest("_search?pretty", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("nagilum", "nagilum")));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        Assert.assertTrue(res.getBody().contains("\"total\" : 17"));
+        Assert.assertTrue(res.getBody().contains("\"total\" : 18"));
         Assert.assertTrue(!res.getBody().contains("searchguard"));
         
         res = executeGetRequest("_nodes/stats?pretty", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("nagilum", "nagilum")));
@@ -546,7 +566,37 @@ public class SGTests extends AbstractUnitTest {
         System.out.println(res.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
         Assert.assertTrue(res.getBody().contains("\"errors\":false"));
-        Assert.assertTrue(res.getBody().contains("\"status\":201"));      
+        Assert.assertTrue(res.getBody().contains("\"status\":201"));  
+        
+        res = executeGetRequest("_searchguard/authinfo", new BasicHeader("sg_tenant", "unittesttenant"), new BasicHeader("Authorization", "Basic "+encodeBasicHeader("worf", "worf")));
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        Assert.assertTrue(res.getBody().contains("sg_tenants"));
+        Assert.assertTrue(res.getBody().contains("unittesttenant"));
+        Assert.assertTrue(res.getBody().contains("\"kltentrw\":true"));
+        Assert.assertTrue(res.getBody().contains("\"user_name\":\"worf\""));
+        
+        res = executeGetRequest("_searchguard/authinfo", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("worf", "worf")));
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        Assert.assertTrue(res.getBody().contains("sg_tenants"));
+        Assert.assertTrue(res.getBody().contains("\"user_requested_tenant\":null"));
+        Assert.assertTrue(res.getBody().contains("\"kltentrw\":true"));
+        Assert.assertTrue(res.getBody().contains("\"user_name\":\"worf\""));
+        
+        Assert.assertTrue(PrivilegesInterceptorImpl.count > 0);
+        
+        final String reindex = "{"+
+                "\"source\": {"+    
+                  "\"index\": \"starfleet\""+
+                "},"+
+                "\"dest\": {"+
+                  "\"index\": \"copysf\""+
+                "}"+
+              "}";
+
+        res = executePostRequest("_reindex?pretty", reindex, new BasicHeader("Authorization", "Basic "+encodeBasicHeader("nagilum", "nagilum")));
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        Assert.assertTrue(res.getBody().contains("\"total\" : 3"));
+        Assert.assertTrue(res.getBody().contains("\"batches\" : 1"));
     }
     
     

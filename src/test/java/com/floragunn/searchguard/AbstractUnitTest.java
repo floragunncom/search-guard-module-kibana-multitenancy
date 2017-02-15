@@ -77,8 +77,10 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.reindex.ReindexPlugin;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
+import org.elasticsearch.percolator.PercolatorPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.After;
@@ -174,6 +176,7 @@ public abstract class AbstractUnitTest {
                 .put("node.local", false)
                 .put("transport.type.default", "netty4")
                 .put("node.max_local_storage_nodes", 3)
+                .put("discovery.zen.minimum_master_nodes", 1)
                 .put("path.home",".");
     }
     // @formatter:on
@@ -185,23 +188,27 @@ public abstract class AbstractUnitTest {
         log.debug("Connect to {}", address);
         return address;
     }
-
+    
     public final void startES(final Settings settings) throws Exception {
+        startES(settings, 30, 3);
+    }
+
+    public final void startES(final Settings settings, int timeOutSec, int assertNodes) throws Exception {
 
         FileUtils.deleteDirectory(new File("data"));
 
         esNode1 = new PluginAwareNode(getDefaultSettingsBuilder(1, false, true).put(
-                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), Netty4Plugin.class, SearchGuardPlugin.class);
+                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), PercolatorPlugin.class, ReindexPlugin.class, Netty4Plugin.class, SearchGuardPlugin.class);
         esNode2 = new PluginAwareNode(getDefaultSettingsBuilder(2, true, true).put(
-                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), Netty4Plugin.class, SearchGuardPlugin.class);
+                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), PercolatorPlugin.class, ReindexPlugin.class, Netty4Plugin.class, SearchGuardPlugin.class);
         esNode3 = new PluginAwareNode(getDefaultSettingsBuilder(3, true, false).put(
-                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), Netty4Plugin.class, SearchGuardPlugin.class);
+                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), PercolatorPlugin.class, ReindexPlugin.class, Netty4Plugin.class, SearchGuardPlugin.class);
 
         esNode1.start();
         esNode2.start();
         esNode3.start();
 
-        waitForGreenClusterState(esNode1.client());
+        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(timeOutSec), esNode1.client(), assertNodes);
     }
     
     protected Client client() {
@@ -233,14 +240,14 @@ public abstract class AbstractUnitTest {
     }
 
     protected void waitForGreenClusterState(final Client client) throws IOException {
-        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(30), client);
+        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(30), client, 3);
     }
 
-    protected void waitForCluster(final ClusterHealthStatus status, final TimeValue timeout, final Client client) throws IOException {
+    protected void waitForCluster(final ClusterHealthStatus status, final TimeValue timeout, final Client client, int assertNodes) throws IOException {
         try {
             log.debug("waiting for cluster state {}", status.name());
             final ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth().setWaitForStatus(status)
-                    .setTimeout(timeout).setWaitForNodes("3").execute().actionGet();
+                    .setTimeout(timeout).setWaitForNodes(String.valueOf(assertNodes)).execute().actionGet();
             if (healthResponse.isTimedOut()) {
                 throw new IOException("cluster state is " + healthResponse.getStatus().name() + " with "
                         + healthResponse.getNumberOfNodes() + " nodes");
@@ -249,7 +256,7 @@ public abstract class AbstractUnitTest {
                         + " nodes");
             }
             
-            org.junit.Assert.assertEquals(3, healthResponse.getNumberOfNodes());
+            org.junit.Assert.assertEquals(assertNodes, healthResponse.getNumberOfNodes());
 
             final NodesInfoResponse res = esNode1.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet();
             
@@ -470,7 +477,7 @@ public abstract class AbstractUnitTest {
             try {
                 return readXContent(new StringReader(loadFile(file)), XContentType.YAML);
             } catch (IOException e) {
-                return null;
+                throw new RuntimeException(e);
             }
     }
     

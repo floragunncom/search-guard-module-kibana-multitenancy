@@ -5,7 +5,7 @@ sg_public:
 
 sg_all_access:
   cluster:
-    - 'cluster:*'
+    - '*'
   indices:
     '*':
       '*':  
@@ -32,12 +32,18 @@ sg_role_klingons1:
     klingonempire:
       ships:  
         - READ
+  tenants:
+    kltentrw: Rw
+    kltentro: RO
 
 sg_role_klingons2:
   indices:
     klingonempire:
       praxis:  
         - READ
+  tenants:
+    praxisrw: RW
+    praxisro: ro
 
 sg_role_starfleet:
   indices:
@@ -287,3 +293,9 @@ sg_baz:
     'foo':
       'baz':
         - READ
+        
+sg_role01_role02:
+  indices:
+    'role01_role02':
+      '*':
+       - ALL

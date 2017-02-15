@@ -34,6 +34,7 @@ import java.util.TreeSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.IndicesRequest;
@@ -95,9 +96,10 @@ public class PrivilegesEvaluator {
     private final ConfigurationRepository configurationRepository;
 
     private final String searchguardIndex;
-    
+    private PrivilegesInterceptor privilegesInterceptor;
+
     public PrivilegesEvaluator(final ClusterService clusterService, final ThreadPool threadPool, final ConfigurationRepository configurationRepository, final ActionGroupHolder ah,
-            final IndexNameExpressionResolver resolver, AuditLog auditLog, final Settings settings) {
+            final IndexNameExpressionResolver resolver, AuditLog auditLog, final Settings settings, final PrivilegesInterceptor privilegesInterceptor) {
         super();
         this.configurationRepository = configurationRepository;
         this.clusterService = clusterService;
@@ -107,6 +109,7 @@ public class PrivilegesEvaluator {
 
         this.threadContext = threadPool.getThreadContext();
         this.searchguardIndex = settings.get(ConfigConstants.SG_CONFIG_INDEX, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
+        this.privilegesInterceptor = privilegesInterceptor;
         
         /*
         indices:admin/template/delete
@@ -167,7 +170,7 @@ public class PrivilegesEvaluator {
         return getRolesSettings() != null && getRolesMappingSettings() != null && getConfigSettings() != null;
     }
     
-    private static class IndexType {
+    public static class IndexType {
         
         private String index;
         private String type;
@@ -180,6 +183,14 @@ public class PrivilegesEvaluator {
  
         public String getCombinedString() {
             return index+"#"+type;
+        }
+        
+        public String getIndex() {
+            return index;
+        }
+
+        public String getType() {
+            return type;
         }
 
         @Override
@@ -305,13 +316,25 @@ public class PrivilegesEvaluator {
         final Set<String> sgRoles = mapSgRoles(user, caller);
        
         if (log.isDebugEnabled()) {
-            log.debug("mapped roles: {}", sgRoles);
+            log.debug("mapped roles for {}: {}", user.getName(), sgRoles);
+        }
+        
+        if(privilegesInterceptor.getClass() != PrivilegesInterceptor.class) {
+        
+            final boolean denyRequest = privilegesInterceptor.replaceKibanaIndex(request, action, user, config, requestedResolvedIndices, mapTenants(user, caller));
+    
+            if (denyRequest) {
+                auditLog.logMissingPrivileges(action, request);
+                return false;
+            }
         }
         
         boolean allowAction = false;
         
         final Map<String,Set<String>> dlsQueries = new HashMap<String, Set<String>>();
         final Map<String,Set<String>> flsFields = new HashMap<String, Set<String>>();
+
+        final Set<IndexType> leftovers = new HashSet<PrivilegesEvaluator.IndexType>();
 
         for (final Iterator<String> iterator = sgRoles.iterator(); iterator.hasNext();) {
             final String sgRole = (String) iterator.next();
@@ -345,6 +368,8 @@ public class PrivilegesEvaluator {
                 || (compositeEnabled && action.equals(MultiSearchAction.NAME))
                 || (compositeEnabled && action.equals(MultiTermVectorsAction.NAME))
                 || (compositeEnabled && action.equals("indices:data/read/coordinate-msearch"))
+                || (compositeEnabled && action.equals("indices:data/write/reindex"))
+                || (compositeEnabled && action.equals("indices:data/read/mpercolate"))
                 //|| (compositeEnabled && action.equals(MultiPercolateAction.NAME))
                 ) {
                 
@@ -502,6 +527,14 @@ public class PrivilegesEvaluator {
                             //TODO use UserPropertyReplacer, make it registerable for ldap user
                             dls = dls.replace("${user.name}", user.getName()).replace("${user_name}", user.getName());
                            
+                            if(dlsQueries.containsKey(indexPattern)) {
+                                dlsQueries.get(indexPattern).add(dls);
+                            } else {
+                                dlsQueries.put(indexPattern, new HashSet<String>());
+                                dlsQueries.get(indexPattern).add(dls);
+                            }
+                            
+                            
                             for (int i = 0; i < concreteIndices.length; i++) {
                                 final String ci = concreteIndices[i];
                                 if(dlsQueries.containsKey(ci)) {
@@ -520,6 +553,13 @@ public class PrivilegesEvaluator {
                         }
                         
                         if(fls != null && fls.length > 0) {
+                            
+                            if(flsFields.containsKey(indexPattern)) {
+                                flsFields.get(indexPattern).addAll(Sets.newHashSet(fls));
+                            } else {
+                                flsFields.put(indexPattern, new HashSet<String>());
+                                flsFields.get(indexPattern).addAll(Sets.newHashSet(fls));
+                            }
                             
                             for (int i = 0; i < concreteIndices.length; i++) {
                                 final String ci = concreteIndices[i];
@@ -543,6 +583,8 @@ public class PrivilegesEvaluator {
                 allowAction = true;
             }
 
+            leftovers.addAll(_requestedResolvedIndexTypes);
+            
         } // end sg role loop
 
         if (!allowAction && log.isInfoEnabled()) {
@@ -571,13 +613,17 @@ public class PrivilegesEvaluator {
             }
         }
         
+        if(!allowAction && privilegesInterceptor.getClass() != PrivilegesInterceptor.class) {
+            return privilegesInterceptor.replaceAllowedIndices(request, action, user, config, leftovers);
+        }
+        
         return allowAction;
     }
 
     
     //---- end evaluate()
     
-    public Set<String> mapSgRoles(User user, TransportAddress caller) {
+    public Set<String> mapSgRoles(final User user, final TransportAddress caller) {
         
         final Settings rolesMapping = getRolesMappingSettings();
         
@@ -588,6 +634,12 @@ public class PrivilegesEvaluator {
         final Set<String> sgRoles = new TreeSet<String>();
         for (final String roleMap : rolesMapping.names()) {
             final Settings roleMapSettings = rolesMapping.getByPrefix(roleMap);
+            
+            if (WildcardMatcher.allPatternsMatched(roleMapSettings.getAsArray(".and_backendroles"), user.getRoles().toArray(new String[0]))) {
+                sgRoles.add(roleMap);
+                continue;
+            }
+            
             if (WildcardMatcher.matchAny(roleMapSettings.getAsArray(".backendroles"), user.getRoles().toArray(new String[0]))) {
                 sgRoles.add(roleMap);
                 continue;
@@ -613,6 +665,34 @@ public class PrivilegesEvaluator {
         return Collections.unmodifiableSet(sgRoles);
 
     }
+    
+    public Map<String, Boolean> mapTenants(final User user, final TransportAddress caller) {
+        
+        if(user == null) {
+            return Collections.emptyMap();
+        }
+        
+        final Map<String, Boolean> result = new HashMap<String, Boolean>();
+        result.put(user.getName(), true);
+        
+        for(String sgRole: mapSgRoles(user, caller)) {
+            Settings tenants = getRolesSettings().getByPrefix(sgRole+".tenants.");
+            
+            if(tenants != null) {
+                for(String tenant: tenants.names()) {
+                    if("RW".equalsIgnoreCase(tenants.get(tenant, "RO"))) {
+                        result.put(tenant, true);
+                    } else {
+                        result.put(tenant, false);
+                    }
+                }
+            }
+            
+        }
+
+        return Collections.unmodifiableMap(result);
+    }
+
 
     private void handleIndicesWithWildcard(final String action, final String permittedAliasesIndex,
             final Map<String, Settings> permittedAliasesIndices, final Set<IndexType> requestedResolvedIndexTypes, final Set<IndexType> _requestedResolvedIndexTypes, final Set<String> requestedResolvedIndices0) {
@@ -790,6 +870,40 @@ public class PrivilegesEvaluator {
                 }
                 
                 
+            } else if(request.getClass().getName().equals("org.elasticsearch.index.reindex.ReindexRequest")) {
+                                
+                try {
+                    Tuple<Set<String>, Set<String>> t = resolve(user, action, (IndicesRequest) request.getClass().getMethod("getDestination").invoke(request), metaData);
+                    indices.addAll(t.v1());
+                    types.addAll(t.v2());
+                    
+                    t = resolve(user, action, (IndicesRequest) request.getClass().getMethod("getSearchRequest").invoke(request), metaData);
+                    indices.addAll(t.v1());
+                    types.addAll(t.v2());
+                } catch (Exception e) {
+                    log.error("Unable to handle "+request.getClass()+" due to "+e);
+                    if(log.isDebugEnabled()) {
+                        log.debug(ExceptionsHelper.stackTrace(e));
+                    }
+                }
+
+            } else if(request.getClass().getName().equals("org.elasticsearch.percolator.MultiPercolateRequest")) {
+                
+                try {
+                    final List<Object> requests = (List<Object>) request.getClass().getMethod("requests").invoke(request);
+                    
+                    for(final Object ar: requests) {
+                        final Tuple<Set<String>, Set<String>> t = resolve(user, action, (TransportRequest) ar, metaData);
+                        indices.addAll(t.v1());
+                        types.addAll(t.v2());
+                    }
+                } catch (Exception e) {
+                    log.error("Unable to handle "+request.getClass()+" due to "+e);
+                    if(log.isDebugEnabled()) {
+                        log.debug(ExceptionsHelper.stackTrace(e));
+                    }
+                }
+
             } else {
                 log.debug("Can not handle composite request of type '"+request+"' here");
             }

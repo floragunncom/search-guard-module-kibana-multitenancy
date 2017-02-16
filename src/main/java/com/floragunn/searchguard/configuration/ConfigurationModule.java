@@ -23,6 +23,8 @@ import org.elasticsearch.common.inject.AbstractModule;
 
 import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve.NoopDlsFlsRequestValve;
+import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
+import com.floragunn.searchguard.transport.InterClusterRequestEvaluatorProvider;
 
 public class ConfigurationModule extends AbstractModule {
 
@@ -34,6 +36,9 @@ public class ConfigurationModule extends AbstractModule {
         bind(ActionGroupHolder.class).asEagerSingleton();
         bind(PrivilegesEvaluator.class).asEagerSingleton();
         bind(InternalAuthenticationBackend.class).asEagerSingleton();
+        bind(InterClusterRequestEvaluator.class)
+            .toProvider(InterClusterRequestEvaluatorProvider.class)
+            .asEagerSingleton();
         
         try {
             Class dlsFlsRequestValve;
@@ -48,6 +53,22 @@ public class ConfigurationModule extends AbstractModule {
             bind(DlsFlsRequestValve.class).to(NoopDlsFlsRequestValve.class).asEagerSingleton();
             log.info("FLS/DLS valve not bound (noop)");
         }
+        
+        try {
+            Class privilegesInterceptorImpl;
+            if ((privilegesInterceptorImpl = Class
+                    .forName("com.floragunn.searchguard.configuration.PrivilegesInterceptorImpl")) != null) {
+                bind(PrivilegesInterceptor.class).to(privilegesInterceptorImpl).asEagerSingleton();
+                log.info("Privileges interceptor bound");
+            } else {
+                throw new ClassNotFoundException();
+            }
+        } catch (ClassNotFoundException e) {
+            bind(PrivilegesInterceptor.class).asEagerSingleton();
+            log.info("Privileges interceptor not bound (noop)");
+        }
                
     }
+    
+    
 }

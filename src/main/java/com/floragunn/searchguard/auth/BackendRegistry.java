@@ -438,7 +438,9 @@ public class BackendRegistry implements ConfigChangeListener {
             try {
                 ac = httpAuthenticator.extractCredentials(request);
             } catch (Exception e1) {
-                log.info("{} extracting credentials from {}", e1, e1.toString(), httpAuthenticator.getType());
+                if(log.isDebugEnabled()) {
+                    log.debug("'{}' extracting credentials from {} authenticator", e1, httpAuthenticator.getType());    
+                }
                 continue;
             }
             authCredenetials = ac;
@@ -522,10 +524,16 @@ public class BackendRegistry implements ConfigChangeListener {
                     return false;
                 }
                 
+                final String tenant = request.header("sg_tenant");
+                
                  //authenticatedUser.addRoles(ac.getBackendRoles());
                 if(log.isDebugEnabled()) {
                     log.debug("User '{}' is authenticated", authenticatedUser);
+                    log.debug("sg_tenant '{}'", tenant);
                 }
+                
+                authenticatedUser.setRequestedTenant(tenant);
+                
                 request.putInContext(ConfigConstants.SG_USER, authenticatedUser);
                 authenticated = true;
                 break;

@@ -130,7 +130,10 @@ public class RestHelper {
 			}
 
 			HttpResponse res = new HttpResponse(httpClient.execute(uriRequest));
-			log.debug(res.getBody());
+
+			if(log.isTraceEnabled()) {
+			    log.trace(res.getBody());
+			}
 			return res;
 		} finally {
 

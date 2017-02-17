@@ -25,3 +25,35 @@ sg_dls_multi1:
 sg_dls_multi2:
   users:
     - dept_manager_multi
+    
+sg_fls_fields:
+  users:
+    - fls_fields
+    
+sg_logstash:
+  users:
+    - logstash
+    
+sg_fls_fields_wc:
+  users:
+    - fls_fields_wc
+    
+sg_regex:
+  users:
+    - regex
+    
+sg_perf_named_only:
+  users:
+    - perf_named_only
+    
+sg_perf_wc_in:
+  users:
+    - perf_wc_in
+    
+sg_perf_named_ex:
+  users:
+    perf_named_ex
+    
+sg_perf_wc_ex:
+  users:
+    perf_wc_ex

@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DirectoryReader;
@@ -73,6 +74,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
     private String[] includes;
     private String[] excludes;
     private boolean canOptimize = true;
+    private Function<Map<String, ?>, Map<String, Object>> filterFunction;
 
     DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includesExcludes, final Query dlsQuery) {
         super(delegate);
@@ -136,11 +138,20 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
                     this.includes = includesSet.toArray(EMPTY_STRING_ARRAY);
                 }
+                
+                if (!excludesSet.isEmpty()) {
+                    filterFunction = XContentMapValues.filter(null, excludes);
+                } else {
+                    filterFunction = XContentMapValues.filter(includes, null);
+                }
             }
 
             final FieldInfo[] tmp = new FieldInfo[i];
             System.arraycopy(fa, 0, tmp, 0, i);
             this.flsFieldInfos = new FieldInfos(tmp);
+            
+            
+            
         } else {
             this.includesSet = null;
             this.excludesSet = null;
@@ -312,11 +323,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
                 Map<String, Object> filteredSource = bytesRefTuple.v2();
                 
                 if (!canOptimize) {
-                    if (!excludesSet.isEmpty()) {
-                        filteredSource = XContentMapValues.filter(bytesRefTuple.v2(), null, excludes);
-                    } else {
-                        filteredSource = XContentMapValues.filter(bytesRefTuple.v2(), includes, null);
-                    }
+                    filteredSource = filterFunction.apply(bytesRefTuple.v2());
                 } else {
                     if (!excludesSet.isEmpty()) {
                         filteredSource.keySet().removeAll(excludesSet);

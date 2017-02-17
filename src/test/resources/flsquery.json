@@ -34,13 +34,9 @@
       }
    },
    "query":{
-      "filtered":{
-         "query":{
-            "match_all":{
-
-            }
-         },
-         "filter":{
+   
+         
+         
             "bool":{
                "must":[
                   {
@@ -57,10 +53,10 @@
 
                ]
             }
-         }
-      }
+         
+     
    },
-   "fields":[
+   "stored_fields":[
       "*",
       "_source"
    ],

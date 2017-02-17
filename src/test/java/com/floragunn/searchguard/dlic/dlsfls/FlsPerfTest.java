@@ -49,7 +49,7 @@ public class FlsPerfTest extends AbstractDlsFlsTest{
                 .source("rolesmapping", FileHelper.readYamlContent("sg_roles_mapping.yml"))).actionGet();
         tc.index(new IndexRequest("searchguard").type("actiongroups").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                 .source("actiongroups", FileHelper.readYamlContent("sg_action_groups.yml"))).actionGet();
-                
+                        
         tc.admin().indices().create(new CreateIndexRequest("deals")
         .settings("index.mapping.total_fields.limit",50000
                 , "number_of_shards", 10

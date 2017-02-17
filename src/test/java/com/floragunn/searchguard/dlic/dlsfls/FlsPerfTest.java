@@ -33,7 +33,7 @@ import org.junit.Test;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
-//@Ignore
+@Ignore
 public class FlsPerfTest extends AbstractDlsFlsTest{
     
     

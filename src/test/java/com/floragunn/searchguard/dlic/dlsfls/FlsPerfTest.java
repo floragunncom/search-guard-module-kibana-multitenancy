@@ -26,11 +26,13 @@ import org.elasticsearch.common.StopWatch;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
+@Ignore
 public class FlsPerfTest extends AbstractDlsFlsTest{
     
     

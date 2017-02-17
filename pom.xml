@@ -15,7 +15,7 @@
 
   <groupId>com.floragunn</groupId>
   <artifactId>dlic-search-guard-module-dlsfls</artifactId>
-  <version>2.4-5-SNAPSHOT</version>
+  <version>2.4-6-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Search Guard</name>
@@ -35,8 +35,8 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>2.4.1.10</sg2.version>
-    <sgssl.version>2.4.1.19</sgssl.version>
+    <sg2.version>2.4.1.11</sg2.version>
+    <sgssl.version>2.4.1.20</sgssl.version>
     <elasticsearch.version>2.4.1</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>

@@ -1,0 +1,11 @@
+machine:
+  java:
+    version: oraclejdk8
+
+deployment:
+  deploysnap:
+    branch: master
+    commands:
+      - mvn deploy -DskipTests -s settings.xml
+
+

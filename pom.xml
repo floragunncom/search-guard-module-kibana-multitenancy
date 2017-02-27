@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved 
+<!-- Copyright 2017 by floragunn GmbH - All rights reserved 
   Unless required by applicable law or agreed to in writing, software distributed 
   here is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS 
   OF ANY KIND, either express or implied. -->
@@ -15,7 +15,7 @@
 
   <groupId>com.floragunn</groupId>
   <artifactId>dlic-search-guard-module-kibana-multitenancy</artifactId>
-  <version>5.1-1-SNAPSHOT</version>
+  <version>5.2-1-beta1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Search Guard</name>
@@ -35,8 +35,8 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>5.1.1-11</sg2.version>
-    <elasticsearch.version>5.1.1</elasticsearch.version>
+    <sg2.version>5.2.1-11</sg2.version>
+    <elasticsearch.version>5.2.1</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>
 

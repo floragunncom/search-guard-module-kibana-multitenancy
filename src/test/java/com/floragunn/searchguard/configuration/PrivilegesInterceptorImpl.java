@@ -44,7 +44,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     public Boolean replaceKibanaIndex(ActionRequest request, String action, User user, Settings config,
             Set<String> requestedResolvedIndices, Map<String, Boolean> tenants) {
         count++;
-        return Boolean.FALSE;
+        return null;
     }
 
     @Override

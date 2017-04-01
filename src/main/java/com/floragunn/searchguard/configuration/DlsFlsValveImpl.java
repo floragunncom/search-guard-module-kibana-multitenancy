@@ -20,6 +20,7 @@ import java.util.Set;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.RealtimeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.search.SearchRequest;
@@ -53,7 +54,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             }
             
             if(request instanceof BulkRequest) {
-                for(ActionRequest inner:((BulkRequest) request).requests()) {
+                for(DocWriteRequest inner:((BulkRequest) request).requests()) {
                     if(inner instanceof UpdateRequest) {
                         listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS is activated"));
                         return false;

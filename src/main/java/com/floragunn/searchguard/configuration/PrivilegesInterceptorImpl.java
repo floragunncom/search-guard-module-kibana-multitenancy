@@ -31,6 +31,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest.Replaceable;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
@@ -389,7 +390,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
             if (request instanceof BulkRequest) {
 
-                for (ActionRequest ar : ((BulkRequest) request).requests()) {
+                for (DocWriteRequest ar : ((BulkRequest) request).requests()) {
                     if (ar instanceof Replaceable) {
                         Replaceable replaceableRequest = (Replaceable) ar;
                         //log.debug("rplc  "+Arrays.toString(replaceableRequest.indices()) + " with "+new String[]{newIndexName}+" for "+request.getClass().getName());
@@ -554,7 +555,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             
             if(request instanceof BulkRequest) {
 
-                for(ActionRequest ar: ((BulkRequest) request).requests()) {
+                for(DocWriteRequest ar: ((BulkRequest) request).requests()) {
                     final boolean ok = applyIndexReduce0(ar, action, leftOversIndex);
                     if (!ok) {
                         return false;

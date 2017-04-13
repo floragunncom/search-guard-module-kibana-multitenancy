@@ -88,9 +88,6 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         System.out.println("You have to obtain a license if you ");
         System.out.println("use it in production.");
         System.out.println("***************************************************");
-        System.out.println("Search Guard Kibana Multitenancy module is BETA");
-        System.out.println("software, do not use it in production");
-        System.out.println("***************************************************");
     }
 
     static {

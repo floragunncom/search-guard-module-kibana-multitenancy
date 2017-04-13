@@ -4,9 +4,6 @@ machine:
 
 deployment:
   deploysnap:
-    branch:
-      # es-5.0 or es-5.3 etc
-      - '/^es-([0-9]{1})\.([0-9]{1})$/'
     commands:
       - mvn deploy -DskipTests -s settings.xml
 

@@ -1,8 +1,6 @@
 # Search Guard Kibana Multitenancy Module
 
 ![Logo](https://raw.githubusercontent.com/floragunncom/sg-assets/master/logo/sg_dlic_small.png) 
- 
-**Note: Search Guard Kibana Multitenancy Module is beta software at the moment. Do not use it in production yet!**
 
 ## About this module
 This module for [Search Guard](https://github.com/floragunncom/search-guard) adds following Kibana related features:

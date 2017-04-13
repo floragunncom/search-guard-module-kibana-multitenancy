@@ -97,7 +97,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         printLicenseInfo();
     }
     
-    //@Inject
+    //@Inject //omit for >= 5.2
     public PrivilegesInterceptorImpl(IndexNameExpressionResolver resolver, ClusterService clusterService, Client client,
             ThreadPool threadPool) {
         super(resolver, clusterService, client, threadPool);

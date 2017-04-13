@@ -4,6 +4,7 @@ machine:
 
 deployment:
   deploysnap:
+    branch: /.*/
     commands:
       - mvn deploy -DskipTests -s settings.xml
 

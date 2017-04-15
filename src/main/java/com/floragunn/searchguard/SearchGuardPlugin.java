@@ -42,6 +42,9 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.component.Lifecycle.State;
+import org.elasticsearch.common.component.LifecycleComponent;
+import org.elasticsearch.common.component.LifecycleListener;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.common.inject.Provider;
@@ -63,6 +66,7 @@ import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchRequestParsers;
@@ -98,6 +102,7 @@ import com.floragunn.searchguard.filter.SearchGuardRestFilter;
 import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
 import com.floragunn.searchguard.http.SearchGuardNonSslHttpServerTransport;
 import com.floragunn.searchguard.http.XFFResolver;
+import com.floragunn.searchguard.rest.KibanaInfoAction;
 import com.floragunn.searchguard.rest.SearchGuardInfoAction;
 import com.floragunn.searchguard.ssl.DefaultSearchGuardKeyStore;
 import com.floragunn.searchguard.ssl.ExternalSearchGuardKeyStore;
@@ -164,7 +169,7 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin, Net
         //TODO tribe 5.0
         log.info("Node [{}] is a transportClient: {}/tribeNode: {}/tribeNodeClient: {}", settings.get("node.name"), client, tribeNode, tribeNodeClient);
     
-        if(ReflectionHelper.canLoad(FLS_DLS_INDEX_SEARCHER_WRAPPER_CLASS)) {
+        if(!client && ReflectionHelper.canLoad(FLS_DLS_INDEX_SEARCHER_WRAPPER_CLASS)) {
             try {
                 dlFlsConstructor = ReflectionHelper
                 .load(FLS_DLS_INDEX_SEARCHER_WRAPPER_CLASS)
@@ -193,6 +198,7 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin, Net
         List<Class<? extends RestHandler>> handlers = new ArrayList<Class<? extends RestHandler>>(1);
         if (!client && !tribeNodeClient) {
             handlers.add(SearchGuardInfoAction.class);
+            handlers.add(KibanaInfoAction.class);
             handlers.add(SearchGuardSSLInfoAction.class);
             
             if(ReflectionHelper.canLoad("com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions")) {
@@ -225,18 +231,19 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin, Net
         return actions;
     }
     
-    
     @Override
     public Collection<Module> createGuiceModules() {
         List<Module> modules = new ArrayList<Module>(1);
-        modules.add(new SearchGuardSSLModule(settings, sgks));   
+        modules.add(new SearchGuardSSLModule(settings, sgks));
         return modules;
     }
     
     private IndexSearcherWrapper loadFlsDlsIndexSearcherWrapper(final IndexService indexService) {
         try {
             IndexSearcherWrapper flsdlsWrapper = (IndexSearcherWrapper) dlFlsConstructor.newInstance(indexService, settings);
-            log.info("FLS/DLS enabled");
+            if(log.isDebugEnabled()) {
+                log.debug("FLS/DLS enabled for index {}", indexService.index().getName());
+            }
             return flsdlsWrapper;
         } catch(Exception ex) {
             throw new RuntimeException("Failed to enable FLS/DLS", ex);
@@ -431,7 +438,8 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin, Net
         cr.subscribeOnChange(ConfigConstants.CONFIGNAME_CONFIG, xffResolver);   
         final BackendRegistry backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, iab, auditLog, threadPool);
         cr.subscribeOnChange(ConfigConstants.CONFIGNAME_CONFIG, backendRegistry); 
-        final ActionGroupHolder ah = new ActionGroupHolder(cr);      
+        final ActionGroupHolder ah = new ActionGroupHolder(cr); 
+
         final PrivilegesEvaluator pre = new PrivilegesEvaluator(clusterService, threadPool, cr, ah, resolver, auditLog, settings, privilegesInterceptor);    
         final SearchGuardFilter sgf = new SearchGuardFilter(settings, pre, adminDns, dlsFlsValve, auditLog, threadPool);     
         sgi = new SearchGuardInterceptor(settings, threadPool, backendRegistry, auditLog, pe, interClusterRequestEvaluator);
@@ -498,7 +506,11 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin, Net
         settings.add(Setting.simpleString("searchguard.cert.intercluster_request_evaluator_class", Property.NodeScope, Property.Filtered));
         settings.add(Setting.listSetting("searchguard.nodes_dn", Collections.emptyList(), Function.identity(), Property.NodeScope));//not filtered here
 
-        
+        settings.add(Setting.boolSetting(ConfigConstants.SG_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE, ConfigConstants.SG_DEFAULT_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE,
+                Property.NodeScope, Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.SG_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES, ConfigConstants.SG_DEFAULT_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
+                Property.NodeScope, Property.Filtered));
+
         //SSL
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CLIENTAUTH_MODE, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, Property.NodeScope, Property.Filtered));
@@ -527,8 +539,19 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin, Net
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_PROTOCOLS, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_CIPHERS, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_PROTOCOLS, Property.NodeScope, Property.Filtered));
+        
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_CLIENT_EXTERNAL_CONTEXT_ID, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, Property.NodeScope, Property.Filtered));
+        
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH, Property.NodeScope, Property.Filtered));
+
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_PASSWORD, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH, Property.NodeScope, Property.Filtered));
 
         settings.add(Setting.simpleString("node.client", Property.NodeScope));
         settings.add(Setting.simpleString("node.local", Property.NodeScope));
@@ -541,5 +564,61 @@ public final class SearchGuardPlugin extends Plugin implements ActionPlugin, Net
         List<String> settingsFilter = new ArrayList<>();
         settingsFilter.add("searchguard.*");
         return settingsFilter;
+    }
+
+    //below is a hack because it seems not possible to access RepositoriesService from a non guice class
+    //the way of how deguice is organized is really a mess - hope this can be fixed in later versions
+    //TODO check if this could be removed
+    
+    @Override
+    public Collection<Class<? extends LifecycleComponent>> getGuiceServiceClasses() {
+
+        if (client || tribeNodeClient) {
+            return Collections.emptyList();
+        }
+        
+        final List<Class<? extends LifecycleComponent>> services = new ArrayList<>(1);
+        services.add(RepositoriesServiceHolder.class);
+        return services;
+    }
+    
+    public static class RepositoriesServiceHolder implements LifecycleComponent {
+
+        private static RepositoriesService repositoriesService;
+        
+        @Inject
+        public RepositoriesServiceHolder(final RepositoriesService repositoriesService) {
+            RepositoriesServiceHolder.repositoriesService = repositoriesService;
+        }
+
+        public static RepositoriesService getRepositoriesService() {
+            return repositoriesService;
+        }
+
+        @Override
+        public void close() {            
+        }
+
+        @Override
+        public State lifecycleState() {
+            return null;
+        }
+
+        @Override
+        public void addLifecycleListener(LifecycleListener listener) {            
+        }
+
+        @Override
+        public void removeLifecycleListener(LifecycleListener listener) {            
+        }
+
+        @Override
+        public void start() {            
+        }
+
+        @Override
+        public void stop() {            
+        }
+        
     }
 }

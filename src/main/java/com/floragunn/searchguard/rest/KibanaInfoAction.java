@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 floragunn UG (haftungsbeschränkt)
+ * Copyright 2017 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ package com.floragunn.searchguard.rest;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 
 import java.io.IOException;
-import java.security.cert.X509Certificate;
 
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
@@ -39,16 +38,16 @@ import com.floragunn.searchguard.configuration.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
-public class SearchGuardInfoAction extends BaseRestHandler {
+public class KibanaInfoAction extends BaseRestHandler {
 
     private final PrivilegesEvaluator evaluator;
     private final ThreadContext threadContext;
 
-    public SearchGuardInfoAction(final Settings settings, final RestController controller, final PrivilegesEvaluator evaluator, final ThreadPool threadPool) {
+    public KibanaInfoAction(final Settings settings, final RestController controller, final PrivilegesEvaluator evaluator, final ThreadPool threadPool) {
         super(settings);
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
-        controller.registerHandler(GET, "/_searchguard/authinfo", this);
+        controller.registerHandler(GET, "/_searchguard/kibanainfo", this);
     }
 
     @Override
@@ -61,20 +60,17 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                 BytesRestResponse response = null;
                 
                 try {
-
-                    final X509Certificate[] certs = threadContext.getTransient(ConfigConstants.SG_SSL_PEER_CERTIFICATES);
+                    
                     final User user = (User)threadContext.getTransient(ConfigConstants.SG_USER);
                     final TransportAddress remoteAddress = (TransportAddress) threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
 
                     builder.startObject();
-                    builder.field("user", user);
                     builder.field("user_name", user==null?null:user.getName());
-                    builder.field("user_requested_tenant", user==null?null:user.getRequestedTenant());
-                    builder.field("remote_address", remoteAddress);
-                    builder.field("sg_roles", evaluator.mapSgRoles(user, remoteAddress));
-                    builder.field("sg_tenants", evaluator.mapTenants(user, remoteAddress));
-                    builder.field("principal", (String)threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL));
-                    builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
+                    builder.field("not_fail_on_forbidden_enabled", evaluator.notFailOnForbiddenEnabled());
+                    builder.field("kibana_mt_enabled", evaluator.multitenancyEnabled());
+                    builder.field("kibana_index", evaluator.kibanaIndex());
+                    builder.field("kibana_server_user", evaluator.kibanaServerUsername());
+                    builder.field("kibana_index_readonly", evaluator.kibanaIndexReadonly(user, remoteAddress));
                     builder.endObject();
 
                     response = new BytesRestResponse(RestStatus.OK, builder);

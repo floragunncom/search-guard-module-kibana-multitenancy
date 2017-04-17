@@ -383,7 +383,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         //handle msearch and mget
         //in case of GET change the .kibana index to the userskibanaindex
         //in case of Search add the userskibanaindex
-        if (request instanceof CompositeIndicesRequest) {
+        if (request instanceof CompositeIndicesRequest && !(request instanceof DocWriteRequest)) {
 
             if (request instanceof BulkRequest) {
 
@@ -446,7 +446,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 }
 
             } else {
-                log.warn("Can not handle composite request of type '" + request + "' here");
+                log.warn("Can not handle composite request of type '" + request + "' here (replaceIndex())");
             }
         }
 
@@ -501,11 +501,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             kibOk = true;
         }         
         
-        //refresh request
+        //refresh request (and delete request)
         if (request instanceof ReplicationRequest) {
             ((ReplicationRequest) request).index(newIndexName);
              kibOk = true;
-        } 
+        }
 
         if(!kibOk) {
             log.warn("Unhandled kibana related request {}", request.getClass());
@@ -548,7 +548,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             log.debug("handle {}/{} for leftovers {}", action, request.getClass(), leftOversIndex);
         }
         
-        if (request instanceof CompositeIndicesRequest) {
+        if (request instanceof CompositeIndicesRequest && !(request instanceof DocWriteRequest)) {
             
             if(request instanceof BulkRequest) {
 
@@ -586,7 +586,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                     }
                 }
             } else {
-                log.warn("Can not handle composite request of type '"+request+"' here");
+                log.warn("Can not handle composite request of type '"+request+"' here (replaceAllowedIndices())");
             }
 
             return true;

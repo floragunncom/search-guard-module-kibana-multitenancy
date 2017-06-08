@@ -16,6 +16,7 @@ package com.floragunn.searchguard.configuration;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,7 +54,6 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -68,7 +67,6 @@ import com.floragunn.searchguard.user.User;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-
 public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
     private final static IndicesOptions DEFAULT_INDICES_OPTIONS = IndicesOptions.lenientExpandOpen();
@@ -80,6 +78,8 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
    
     protected final Cache<String, String> createdIndicesCache = CacheBuilder.newBuilder()
             .expireAfterWrite(1, TimeUnit.HOURS).build();
+    
+    private Set<String> upgradesChecked = new HashSet<String>();
 
     public static void printLicenseInfo() {
         System.out.println("***************************************************");
@@ -100,19 +100,20 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         super(resolver, clusterService, client, threadPool);
     }
     
-
-    private boolean createKibanaUserIndex(final String originalIndexName, final String newIndexName) {
+    private void createKibanaUserIndex(final String originalIndexName, final String newIndexName, final String action) {
         
-        if (createdIndicesCache.getIfPresent(newIndexName) != null) {
-            return true;
+        if (upgradesChecked.contains(newIndexName) && createdIndicesCache.getIfPresent(newIndexName) != null) {
+            if (log.isTraceEnabled()) {
+                log.trace("All cached, no need to create or update {} (upgradesChecked={},isCached={})",newIndexName, upgradesChecked.contains(newIndexName),createdIndicesCache.getIfPresent(newIndexName) != null);
+            }
+            return;
         }
 
-       if (log.isTraceEnabled()) {
+        if (log.isTraceEnabled()) {
             log.trace("create new kibana index {} (from original {}) if not exists already", newIndexName, originalIndexName);
-       }
+        }
 
         final CountDownLatch latch = new CountDownLatch(1);
-        final AtomicBoolean success = new AtomicBoolean(false);
 
         final ThreadContext threadContext = getThreadContext();
 
@@ -128,7 +129,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                     if (!response.isExists()) {
 
                         if (log.isDebugEnabled()) {
-                            log.debug("index {} not exists", newIndexName);
+                            log.debug("index {} not exists, create it", newIndexName); 
                         }
 
                         client.admin().indices().prepareCreate(newIndexName).setSettings("number_of_shards", 1)
@@ -144,38 +145,58 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                             if (log.isDebugEnabled()) {
                                                 log.debug("index {} created, will now copy data", newIndexName);
                                             }
-
-                                            client.prepareSearch(originalIndexName).setTypes("config").setSize(10)
+//
+                                            client.prepareSearch(originalIndexName).setTypes("config").setSize(100)
                                                     .execute(new ActionListener<SearchResponse>() {
 
                                                         @Override
                                                         public void onResponse(SearchResponse response) {
 
                                                             final SearchHit[] hits = response.getHits().getHits();
-                                                            String id = null;
-                                                            BytesReference source = null;
-
+                                                            
                                                             if (hits != null && hits.length > 0) {
-                                                                id = hits[0].getId();
-                                                                source = hits[0].getSourceRef();
+                                                                final CountDownLatch ilatch = new CountDownLatch(hits.length);
+                                                                for (int i = 0; i < hits.length; i++) {
+                                                                    final String id = hits[i].getId();
+                                                                    
+                                                                    if (log.isTraceEnabled()) {
+                                                                        log.trace("copy config for version {} -> {}", id, hits[i].getSource());
+                                                                    }
 
-                                                                client.prepareIndex(newIndexName, "config").setId(id).setSource(source)
-                                                                        .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                                                                        .execute(new ActionListener<IndexResponse>() {
+                                                                    client.prepareIndex(newIndexName, "config").setId(id).setSource(hits[i].getSource())
+                                                                            .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                                                                            .execute(new ActionListener<IndexResponse>() {
 
-                                                                            @Override
-                                                                            public void onResponse(IndexResponse response) {
-                                                                                success.set(true);
-                                                                                createdIndicesCache.put(newIndexName, newIndexName);
-                                                                                latch.countDown();
-                                                                            }
+                                                                                @Override
+                                                                                public void onResponse(IndexResponse response) {
+                                                                                    
+                                                                                    if (log.isTraceEnabled()) {
+                                                                                        log.trace("Set needUpgradeCheck now to false for {} because we just created it, so no upgrades until restart", newIndexName);
+                                                                                    }
+                                                                                    upgradesChecked.add(newIndexName);
+                                                                                    
+                                                                                    createdIndicesCache.put(newIndexName, newIndexName);
+                                                                                    ilatch.countDown();
+                                                                                }
 
-                                                                            @Override
-                                                                            public void onFailure(Exception e) {
-                                                                                log.error("Failed to index {}", e, e.toString());
-                                                                                latch.countDown();
-                                                                            }
-                                                                        });
+                                                                                @Override
+                                                                                public void onFailure(Exception e) {
+                                                                                    log.error("Failed to index (2) {}", e, e.toString());
+                                                                                    ilatch.countDown();
+                                                                                }
+                                                                            });
+                                                                }
+                                                                
+                                                                try {
+                                                                    if (!ilatch.await(100, TimeUnit.SECONDS)) {
+                                                                        log.error("Timeout updating index");
+                                                                    }
+                                                                } catch (InterruptedException e1) {
+                                                                    log.error("Interrupted", e1);
+                                                                }
+                                                                
+                                                                latch.countDown();
+
                                                             } else {
                                                                 log.error("no search hits for config");
                                                                 latch.countDown();
@@ -184,7 +205,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                                         @Override
                                                         public void onFailure(Exception e) {
-                                                            log.error("Failed to search config {}", e, e.toString());
+                                                            log.error("Failed to search config (1) {}", e, e.toString());
                                                             latch.countDown();
                                                         }
                                                     });
@@ -201,20 +222,116 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                     }
                                 });
 
-                    } else {
+                    } else if (!upgradesChecked.contains(newIndexName)) {
+                        
+                        createdIndicesCache.put(newIndexName, newIndexName);
 
                         if (log.isTraceEnabled()) {
-                            log.trace("Index {} already exists", newIndexName);
+                            log.trace("Index {} already exists, will update it because upgrade check needed", newIndexName);
                         }
-                        createdIndicesCache.put(newIndexName, newIndexName);
-                        latch.countDown();
-                    }
+                        
+                        client.prepareSearch(newIndexName).setTypes("config").setSize(1)
+                        .execute(new ActionListener<SearchResponse>() {
+                            
+                            @Override
+                            public void onResponse(final SearchResponse responseFromNewIndex) {
+                                client.prepareSearch(originalIndexName).setTypes("config").setSize(1000)
+                                .execute(new ActionListener<SearchResponse>() {
 
-                }
+                                    @Override
+                                    public void onResponse(SearchResponse response) {
+
+                                        final SearchHit[] hits = response.getHits().getHits();
+                                        final CountDownLatch ilatch = new CountDownLatch(hits.length);
+                                        
+                                        for (int i = 0; i < hits.length; i++) {
+                                            final SearchHit searchHit = hits[i];
+                                            
+                                            if(log.isTraceEnabled()) {
+                                                log.trace(i+". action "+action);
+                                                log.trace(i+". upsert config with _id={}", searchHit.getId()); 
+                                                log.trace(i+". orig _source={}", searchHit.getSourceAsString()); 
+                                                log.trace(i+". other _source={}", responseFromNewIndex.getHits().getAt(0).getSource()); 
+                                                log.trace(i+". upsert config with _source={}", updateOrAddDefaultIndexPattern(searchHit.getSource(), responseFromNewIndex.getHits().getAt(0).getSource()));                                        
+                                            }
+                                            
+                                            if(action.contains("indices:data/write") 
+                                                    || action.contains("indices:admin/mapping/put")
+                                                    || action.contains("indices:admin/create")) {
+                                                ilatch.countDown();
+                                                if(log.isTraceEnabled()) {
+                                                    log.trace("skipped because of action="+action);
+                                                }
+                                                continue;
+                                            }
+
+                                            
+                                            client.prepareIndex(newIndexName, "config")
+                                            .setId(searchHit.getId())
+                                            .setSource(updateOrAddDefaultIndexPattern(searchHit.getSource(), responseFromNewIndex.getHits().getAt(0).getSource()))
+                                            .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                                            .execute(new ActionListener<IndexResponse>() {
+
+                                                @Override
+                                                public void onResponse(IndexResponse response) {
+                                                    
+                                                    if (log.isTraceEnabled()) {
+                                                        log.trace("Set needUpgradeCheck now to false for {} because we upgraded, so no upgrades until restart", newIndexName);
+                                                    }
+                                                    upgradesChecked.add(newIndexName);
+                                                    
+                                                    ilatch.countDown();
+                                                }
+
+                                                @Override
+                                                public void onFailure(Exception e) {
+                                                    log.error("Failed to index/update {}", e, e.toString());
+                                                    ilatch.countDown();
+                                                }
+                                            });
+                                        }
+                                        
+                                        try {
+                                            if (!ilatch.await(100, TimeUnit.SECONDS)) {
+                                                log.error("Timeout updating index");
+                                            }
+                                        } catch (InterruptedException e1) {
+                                            log.error("Interrupted", e1);
+                                        }
+                                        
+                                        latch.countDown();
+                                    }
+
+                                    @Override
+                                    public void onFailure(Exception e) {
+                                        log.error("Failed to search config {}", e, e.toString());
+                                        latch.countDown();
+                                    }
+                                });
+                                latch.countDown();
+                            }
+                            
+                            @Override
+                            public void onFailure(Exception e) {
+                                log.error("Failed to query new index");
+                                latch.countDown();
+                            }
+                        });
+                    } else {
+                        
+                        createdIndicesCache.put(newIndexName, newIndexName);
+                        
+                        if (log.isTraceEnabled()) {
+                            log.trace("No update needed for {}", newIndexName);
+                        }
+                    }//end-else
+                    
+                }//end on response for exists newIndexName
 
                 @Override
-                public void onFailure(Exception e) {
-                    log.error("Failed to create index {}", e, e.toString());
+                public void onFailure(Exception e) { //failure for check if newIndexName exists
+                    log.error("Failed to check if index {} exists due to "+e,newIndexName);
+                    log.error(e);
                     latch.countDown();
                 }
 
@@ -224,14 +341,14 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         try {
             if (!latch.await(100, TimeUnit.SECONDS)) {
                 log.error("Timeout creating index");
-                return false;
+                return;
             }
         } catch (InterruptedException e1) {
             log.error("Interrupted", e1);
-            return false;
+            return;
         }
 
-        return success.get();
+        return;
     }
     
     private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, final Map<String, Boolean> tenants, final String requestedTenant) {
@@ -349,7 +466,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             //TODO handle user tenant in that way that this tenant cannot be specified as regular tenant
             //to avoid security issue
             
-            replaceIndex(request, kibanaIndexName, toUserIndexName(kibanaIndexName, requestedTenant));
+            replaceIndex(request, kibanaIndexName, toUserIndexName(kibanaIndexName, requestedTenant), action);
             return Boolean.FALSE;
 
         } else if (!user.getName().equals(kibanaserverUsername)) {
@@ -366,7 +483,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     }
     
     
-    private void replaceIndex(final ActionRequest request, final String oldIndexName, final String newIndexName) {
+    private void replaceIndex(final ActionRequest request, final String oldIndexName, final String newIndexName, final String action) {
         boolean kibOk = false;
                 
         if(log.isDebugEnabled()) {
@@ -378,7 +495,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             return;
         }
 
-        createKibanaUserIndex(oldIndexName, newIndexName);
+        createKibanaUserIndex(oldIndexName, newIndexName, action);
         
         //handle msearch and mget
         //in case of GET change the .kibana index to the userskibanaindex
@@ -706,4 +823,12 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         
         return originalKibanaIndex+"_"+tenant.hashCode()+"_"+tenant.replaceAll("[^a-zA-Z0-9]+",EMPTY_STRING);
     }
+    
+    private static Map<String, Object> updateOrAddDefaultIndexPattern(final Map<String, Object> source, final Map<String, Object> newSource) {
+        final Map<String, Object> map = new HashMap<String, Object>(source);
+        map.put("defaultIndex", newSource.get("defaultIndex"));
+        map.put("buildNum", newSource.get("buildNum"));
+        return map;
+    }
+
 }

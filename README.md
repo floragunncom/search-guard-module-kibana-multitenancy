@@ -3,20 +3,54 @@
 ![Logo](https://raw.githubusercontent.com/floragunncom/sg-assets/master/logo/sg_dlic_small.png) 
 
 ## About this module
-This module for [Search Guard](https://github.com/floragunncom/search-guard) adds following Kibana related features:
+This module for [Search Guard 5](https://github.com/floragunncom/search-guard) adds true multi-tenancy capabilities to Kibana.
 
-* Multitenancy
-* Shows only content you are allowed to see without throwing errors
+## Downloads
+
+* [Elasticsearch 5.4.x / Kibana Multitenancy module 5.4-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.4-1/dlic-search-guard-module-kibana-multitenancy-5.4-1-jar-with-dependencies.jar)
+
+* [Elasticsearch 5.3.x / Kibana Multitenancy module 5.3-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.3-1/dlic-search-guard-module-kibana-multitenancy-5.3-1-jar-with-dependencies.jar)
+
+* [Elasticsearch 5.2.x / Kibana Multitenancy module 5.2-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.2-1/dlic-search-guard-module-kibana-multitenancy-5.2-1-jar-with-dependencies.jar)
+
+* [Elasticsearch 5.1.x / Kibana Multitenancy module 5.1-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.1-1/dlic-search-guard-module-kibana-multitenancy-5.1-1-jar-with-dependencies.jar)
+
+* [Elasticsearch 5.0.x / Kibana Multitenancy module 5.0-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.0-1/dlic-search-guard-module-kibana-multitenancy-5.0-1-jar-with-dependencies.jar)
+
+All versions:
+[Maven central](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.floragunn%22%20AND%20a%3A%22dlic-search-guard-module-kibana-multitenancy%22)
+
+**Choose the module version matching your Elasticsearch version, and download the jar with dependencies.**
+
+## Installation
+
+Download the module for your Elasticsearch versions and place it in the folder
+
+* `<ES installation directory>/plugins/search-guard-5`
+
+After that, restart your nodes to activate the module.
+
+**You also need to install the [Search Guard Kibana plugin](https://github.com/floragunncom/search-guard-kibana-plugin) in addition to this module!**
+
+## Documentation
+
+Please refer to the official Search Guard documentation for installation and configuration instructions:
+
+[Search Guard Kibana Multitenancy Module](https://github.com/floragunncom/search-guard-docs/blob/master/multitenancy.md)
 
 ## Commercial use
-This software is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a license [here](https://floragunn.com/searchguard/searchguard-license-support/) 
-
-## Documentation & Download
-Documentation is provided in our [Search Guard Documentation](https://github.com/floragunncom/search-guard-docs/blob/master/multitenancy.md). All supported Kibana and Elasticsearch versions can be found in the [Multitenancy Wiki](https://github.com/floragunncom/search-guard-module-kibana-multitenancy/wiki).
+This software is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a [license](https://floragunn.com/searchguard/searchguard-license-support/). 
 
 ## License
-Copyright 2017 by floragunn GmbH - All rights reserved 
+Copyright 2016 by floragunn GmbH - All rights reserved 
 
 Unless required by applicable law or agreed to in writing, software
 distributed here is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+## Legal
+floragunn GmbH is not affiliated with Elasticsearch BV.
+
+Search Guard is a trademark of floragunn GmbH, registered in the U.S. and in other countries.
+
+Elasticsearch, Kibana, Logstash, and Beats are trademarks of Elasticsearch BV, registered in the U.S. and in other countries.

@@ -4,18 +4,20 @@
 
 ## About this module
 This module for [Search Guard 5](https://github.com/floragunncom/search-guard) adds true multi-tenancy capabilities to Kibana.
+Multitenancy works only with ES 5.0.2 and higher and Search Guard Version 12 or higher!
+
 
 ## Downloads
 
-* [Elasticsearch 5.4.x / Kibana Multitenancy module 5.4-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.4-1/dlic-search-guard-module-kibana-multitenancy-5.4-1-jar-with-dependencies.jar)
+* [Elasticsearch 5.4.x / Kibana Multitenancy module 5.4-2](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.4-2/dlic-search-guard-module-kibana-multitenancy-5.4-2-jar-with-dependencies.jar)
 
-* [Elasticsearch 5.3.x / Kibana Multitenancy module 5.3-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.3-1/dlic-search-guard-module-kibana-multitenancy-5.3-1-jar-with-dependencies.jar)
+* [Elasticsearch 5.3.x / Kibana Multitenancy module 5.3-2](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.3-2/dlic-search-guard-module-kibana-multitenancy-5.3-2-jar-with-dependencies.jar)
 
-* [Elasticsearch 5.2.x / Kibana Multitenancy module 5.2-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.2-1/dlic-search-guard-module-kibana-multitenancy-5.2-1-jar-with-dependencies.jar)
+* [Elasticsearch 5.2.x / Kibana Multitenancy module 5.2-2](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.2-2/dlic-search-guard-module-kibana-multitenancy-5.2-2-jar-with-dependencies.jar)
 
-* [Elasticsearch 5.1.x / Kibana Multitenancy module 5.1-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.1-1/dlic-search-guard-module-kibana-multitenancy-5.1-1-jar-with-dependencies.jar)
+* [Elasticsearch 5.1.x / Kibana Multitenancy module 5.1-2](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.1-2/dlic-search-guard-module-kibana-multitenancy-5.1-2-jar-with-dependencies.jar)
 
-* [Elasticsearch 5.0.x / Kibana Multitenancy module 5.0-1](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.0-1/dlic-search-guard-module-kibana-multitenancy-5.0-1-jar-with-dependencies.jar)
+* [Elasticsearch 5.0.2 / Kibana Multitenancy module 5.0-2](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.0-2/dlic-search-guard-module-kibana-multitenancy-5.0-2-jar-with-dependencies.jar)
 
 All versions:
 [Maven central](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.floragunn%22%20AND%20a%3A%22dlic-search-guard-module-kibana-multitenancy%22)
@@ -42,7 +44,7 @@ Please refer to the official Search Guard documentation for installation and con
 This software is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a [license](https://floragunn.com/searchguard/searchguard-license-support/). 
 
 ## License
-Copyright 2016 by floragunn GmbH - All rights reserved 
+Copyright 2016-2017 by floragunn GmbH - All rights reserved 
 
 Unless required by applicable law or agreed to in writing, software
 distributed here is distributed on an "AS IS" BASIS,

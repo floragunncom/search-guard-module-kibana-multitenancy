@@ -29,17 +29,18 @@ public class ConfigConstants {
     
     public static final String SG_CHANNEL_TYPE = SG_CONFIG_PREFIX+"channel_type";
     
+    //rename to SG_DLS_QUERY_HEADER
+    @Deprecated
     public static final String SG_DLS_QUERY = SG_CONFIG_PREFIX+"dls_query";
-    public static final String SG_FLS_FIELDS = SG_CONFIG_PREFIX+"fls_fields";
     
-    //public static final String SG_INTERNAL_REQUEST = SG_CONFIG_PREFIX+"internal_request";
+  //rename to SG_FLS_FIELDS_HEADER
+    @Deprecated
+    public static final String SG_FLS_FIELDS = SG_CONFIG_PREFIX+"fls_fields";
     
     public static final String SG_CONF_REQUEST_HEADER = SG_CONFIG_PREFIX+"conf_request";
     
     public static final String SG_REMOTE_ADDRESS = SG_CONFIG_PREFIX+"remote_address";
     public static final String SG_REMOTE_ADDRESS_HEADER = SG_CONFIG_PREFIX+"remote_address_header";
-    
-    //public static final String SG_SGROLES = SG_CONFIG_PREFIX+"sgroles";
     
     /**
      * Set by SSL plugin for https requests only
@@ -56,6 +57,9 @@ public class ConfigConstants {
      * Its expected that there is a _sg_user attached as header
      */
     public static final String SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST = SG_CONFIG_PREFIX+"ssl_transport_intercluster_request";
+    
+    public static final String SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST = SG_CONFIG_PREFIX+"ssl_transport_trustedcluster_request";
+    
     
     /**
      * Set by the SSL plugin, this is the peer node certificate on the transport layer
@@ -89,6 +93,7 @@ public class ConfigConstants {
     public final static String CONFIGNAME_CONFIG = "config";
     
     //TODO public static arrays are unsafe. Check callers and change to an unmodifiable Set
+    @Deprecated
     public final static String[] CONFIGNAMES = new String[] {CONFIGNAME_ROLES, CONFIGNAME_ROLES_MAPPING, 
             CONFIGNAME_ACTION_GROUPS, CONFIGNAME_INTERNAL_USERS, CONFIGNAME_CONFIG};
     public static final String SG_INTERCLUSTER_REQUEST_EVALUATOR_CLASS = "searchguard.cert.intercluster_request_evaluator_class";

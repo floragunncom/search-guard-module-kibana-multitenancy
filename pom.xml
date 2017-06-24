@@ -39,7 +39,7 @@
 
   <properties>
     <sgssl.version>5.4.2-22</sgssl.version>
-    <netty-native.version>2.0.1.Final</netty-native.version>
+    <netty-native.version>2.0.3.Final</netty-native.version>
     <elasticsearch.version>5.4.2</elasticsearch.version>
     <elasticsearch.assembly.descriptor>${basedir}/src/main/assemblies/plugin.xml</elasticsearch.assembly.descriptor>
     <sgstandalone.descriptor>${basedir}/src/main/assemblies/sgadmin-standalone.xml</sgstandalone.descriptor>
@@ -161,6 +161,15 @@
        <version>${elasticsearch.version}</version>
        <scope>test</scope>
     </dependency>
+    
+    <dependency>
+       <groupId>com.floragunn</groupId>
+       <artifactId>dlic-search-guard-test-framework</artifactId>
+       <version>5.3-1-SNAPSHOT</version>
+       <classifier>tests</classifier>
+       <scope>test</scope>
+    </dependency>
+    
   </dependencies>
 
   <build>

@@ -19,9 +19,14 @@ package com.floragunn.searchguard;
 
 import io.netty.handler.ssl.OpenSsl;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.message.BasicHeader;
@@ -290,6 +295,10 @@ public class SGTests extends AbstractUnitTest {
                 .put("searchguard.ssl.http.enabled",true)
                 .put("searchguard.ssl.http.keystore_filepath", getAbsoluteFilePathFromClassPath("node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath", getAbsoluteFilePathFromClassPath("truststore.jks"))
+                .putArray(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_PROTOCOLS, "TLSv1.1","TLSv1.2")
+                .putArray(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_CIPHERS, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
+                .putArray(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_PROTOCOLS, "TLSv1.1","TLSv1.2")
+                .putArray(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_CIPHERS, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
                 .putArray("searchguard.authcz.admin_dn", "CN=kirk,OU=client,O=client,l=tEst, C=De")
                 
                 /*
@@ -467,6 +476,8 @@ public class SGTests extends AbstractUnitTest {
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, executeGetRequest("").getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, executeGetRequest("", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("worf", "worf"))).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, executeGetRequest("", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, executeDeleteRequest("nonexistentindex*", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, executeGetRequest(".nonexistentindex*", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_NOT_FOUND, executeGetRequest("searchguard/config/0", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_NOT_FOUND, executeGetRequest("xxxxyyyy/config/0", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, executeGetRequest("", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("abc", "abc:abc"))).getStatusCode());
@@ -1331,7 +1342,7 @@ public class SGTests extends AbstractUnitTest {
             //impersonation
             try {
                 
-                StoredContext ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+                StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
                 try {
                     tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "worf");
                     gr = tc.prepareGet("vulcan", "secrets", "s1").get();
@@ -1345,7 +1356,7 @@ public class SGTests extends AbstractUnitTest {
             
             System.out.println("------- 11 ---------");
    
-            StoredContext ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("Authorization", "basic "+encodeBasicHeader("worf", "worf"));
                 gr = tc.prepareGet("vulcan", "secrets", "s1").get();
@@ -1365,7 +1376,7 @@ public class SGTests extends AbstractUnitTest {
             }*/
             
             System.out.println("------- 12 ---------");
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("Authorization", "basic "+encodeBasicHeader("worf", "worf111"));
                 gr = tc.prepareGet("vulcan", "secrets", "s1").get();
@@ -1380,7 +1391,7 @@ public class SGTests extends AbstractUnitTest {
             
             //impersonation
             try {
-                ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+                ctx = tc.threadPool().getThreadContext().stashContext();
                 try {
                     tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "gkar");
                     gr = tc.prepareGet("vulcan", "secrets", "s1").get();
@@ -1433,7 +1444,7 @@ public class SGTests extends AbstractUnitTest {
             */
             System.out.println("------- 12 ---------");
 
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
                 gr = tc.prepareGet("searchguard", "config", "0").setRealtime(Boolean.TRUE).get();
@@ -1444,7 +1455,7 @@ public class SGTests extends AbstractUnitTest {
             }
 
             System.out.println("------- 13 ---------");
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
                 gr = tc.prepareGet("searchguard", "config", "0").setRealtime(Boolean.FALSE).get();
@@ -1456,7 +1467,7 @@ public class SGTests extends AbstractUnitTest {
             
             
             String scrollId = null;
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
                 SearchResponse searchRes = tc.prepareSearch("starfleet").setTypes("ships").setScroll(TimeValue.timeValueMinutes(5)).get();
@@ -1466,7 +1477,7 @@ public class SGTests extends AbstractUnitTest {
             }
 
             //TODO fails (but this could be ok?)
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "worf");
                 SearchResponse scrollRes = tc.prepareSearchScroll(scrollId).get();
@@ -1478,13 +1489,13 @@ public class SGTests extends AbstractUnitTest {
             System.out.println("------- 14 ---------");
             
             boolean ok=false;
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
                 gr = tc.prepareGet("vulcan", "secrets", "s1").get();
                 ok = true;
                 ctx.close();
-                ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+                ctx = tc.threadPool().getThreadContext().stashContext();
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
                 tc.threadPool().getThreadContext().putHeader("Authorization", "basic "+encodeBasicHeader("worf", "worf"));
                 gr = tc.prepareGet("vulcan", "secrets", "s1").get();
@@ -1497,7 +1508,7 @@ public class SGTests extends AbstractUnitTest {
             }
             
             System.out.println("------- 15 ---------");
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
                 gr = tc.prepareGet("searchguard", "config", "0").setRealtime(Boolean.TRUE).get();
@@ -1507,7 +1518,7 @@ public class SGTests extends AbstractUnitTest {
                 ctx.close();
             }
             
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("Authorization", "basic "+encodeBasicHeader("nagilum", "nagilum"));
                 gr = tc.prepareGet("searchguard", "config", "0").setRealtime(Boolean.TRUE).get();
@@ -1518,7 +1529,7 @@ public class SGTests extends AbstractUnitTest {
             }
             System.out.println("------- 16---------");
           
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
                 gr = tc.prepareGet("searchguard", "config", "0").setRealtime(Boolean.FALSE).get();
@@ -1528,7 +1539,7 @@ public class SGTests extends AbstractUnitTest {
                 ctx.close();
             }
             
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             SearchResponse searchRes = null;
             try {
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
@@ -1539,7 +1550,7 @@ public class SGTests extends AbstractUnitTest {
             
             Assert.assertNotNull(searchRes.getScrollId());
             
-            ctx = tc.threadPool().getThreadContext().newStoredContext(false);
+            ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "worf");
                 SearchResponse scrollRes = tc.prepareSearchScroll(searchRes.getScrollId()).get(); 
@@ -2516,6 +2527,75 @@ public class SGTests extends AbstractUnitTest {
         auth = new HTTPClientCertAuthenticator(settings);
         Assert.assertEquals("cn=abc,l=ert,st=zui,c=qwe", auth.extractCredentials(null, newThreadContext("cn=abc,l=ert,st=zui,c=qwe")).getUsername());
     }
+    
+    @Test
+    public void testHTTPPlaintextErrMsg() throws Exception {
+
+        final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+        
+        try {
+            final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
+                    .put("searchguard.ssl.transport.keystore_filepath", getAbsoluteFilePathFromClassPath("node-0-keystore.jks"))
+                    .put("searchguard.ssl.transport.truststore_filepath", getAbsoluteFilePathFromClassPath("truststore.jks"))
+                    .put("searchguard.ssl.http.keystore_filepath", getAbsoluteFilePathFromClassPath("node-0-keystore.jks"))
+                    .put("searchguard.ssl.http.truststore_filepath", getAbsoluteFilePathFromClassPath("truststore.jks"))
+                    .put("searchguard.ssl.transport.enforce_hostname_verification", false)
+                    .put("searchguard.ssl.transport.resolve_hostname", false)
+                    .putArray("searchguard.authcz.admin_dn", "CN=kirk,OU=client,O=client,l=tEst, C=De")
+                    .put("searchguard.ssl.http.enabled", true)
+                    /*
+                    searchguard.authcz.impersonation_dn:
+                      "cn=technical_user1,ou=Test,ou=ou,dc=company,dc=com":
+                        - '*'
+                      "cn=webuser,ou=IT,ou=IT,dc=company,dc=com":
+                        - 'kirk'
+                        - 'user1'
+                     
+                     */
+                    
+                    .putArray("searchguard.authcz.impersonation_dn.CN=spock,OU=client,O=client,L=Test,C=DE", "worf")
+                    .build();
+            
+            startES(settings);
+
+            Settings tcSettings = Settings.builder().put("cluster.name", clustername)
+                    .put(settings)
+                    .put("searchguard.ssl.transport.keystore_filepath", getAbsoluteFilePathFromClassPath("kirk-keystore.jks"))
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS,"kirk")
+                    .put("path.home", ".").build();
+
+            try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class))) {
+                
+                log.debug("Start transport client to init");
+                
+                tc.addTransportAddress(new InetSocketTransportAddress(new InetSocketAddress(nodeHost, nodePort)));
+                Assert.assertEquals(3, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
+
+                tc.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
+                
+                tc.index(new IndexRequest("searchguard").type("config").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("config", readYamlContent("sg_config.yml"))).actionGet();
+                tc.index(new IndexRequest("searchguard").type("internalusers").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0").source("internalusers", readYamlContent("sg_internal_users.yml"))).actionGet();
+                tc.index(new IndexRequest("searchguard").type("roles").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("roles", readYamlContent("sg_roles.yml"))).actionGet();
+                tc.index(new IndexRequest("searchguard").type("rolesmapping").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0").source("rolesmapping", readYamlContent("sg_roles_mapping.yml"))).actionGet();
+                tc.index(new IndexRequest("searchguard").type("actiongroups").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0").source("actiongroups", readYamlContent("sg_action_groups.yml"))).actionGet();
+      
+                ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
+                Assert.assertEquals(3, cur.getNodes().size());
+                System.out.println(cur.getNodesMap());
+            }
+            
+            System.out.println("------- End INIT ---------");
+            executeGetRequest("", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("worf", "worf")));
+            Assert.fail();
+        } catch (Exception e) {
+            String log = FileUtils.readFileToString(new File("unittest.log"), StandardCharsets.UTF_8);
+            Assert.assertTrue(log.contains("speaks http plaintext instead of ssl, will close the channel"));
+        }
+        
+      }
     
     private ThreadContext newThreadContext(String sslPrincipal) {
         ThreadContext threadContext = new ThreadContext(Settings.EMPTY);

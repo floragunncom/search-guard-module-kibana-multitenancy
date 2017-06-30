@@ -635,7 +635,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
         final boolean enabled = config.getAsBoolean("searchguard.dynamic.kibana.do_not_fail_on_forbidden", false);
 
-        if (!enabled) {
+        if (!enabled || leftOvers.size() == 0) {
             return false;
         }
 
@@ -653,6 +653,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             if(min == null || entry.getValue().size() < min.getValue().size()) {
                 min = entry;
             }
+        }
+        
+        if(min == null) {
+            log.warn("No valid leftover found");
+            return false;
         }
 
         final Set<String> leftOversIndex = new HashSet<String>();
@@ -821,7 +826,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             throw new ElasticsearchException("tenant must not be null here");
         }
         
-        return originalKibanaIndex+"_"+tenant.hashCode()+"_"+tenant.replaceAll("[^a-zA-Z0-9]+",EMPTY_STRING);
+        return originalKibanaIndex+"_"+tenant.hashCode()+"_"+tenant.toLowerCase().replaceAll("[^a-z0-9]+",EMPTY_STRING);
     }
     
     private static Map<String, Object> updateOrAddDefaultIndexPattern(final Map<String, Object> source, final Map<String, Object> newSource) {

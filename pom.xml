@@ -15,7 +15,7 @@
 
   <groupId>com.floragunn</groupId>
   <artifactId>dlic-search-guard-module-kibana-multitenancy</artifactId>
-  <version>5.4-3-SNAPSHOT</version>
+  <version>5.4-3</version>
   <packaging>jar</packaging>
 
   <name>Search Guard</name>
@@ -44,7 +44,7 @@
     <url>https://github.com/floragunncom/search-guard-module-kibana-multitenancy</url>
     <connection>scm:git:git@github.com:floragunncom/search-guard-module-kibana-multitenancy.git</connection>
     <developerConnection>scm:git:git@github.com:floragunncom/search-guard-module-kibana-multitenancy.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>ves-5.4-3</tag>
   </scm>
 
   <issueManagement>

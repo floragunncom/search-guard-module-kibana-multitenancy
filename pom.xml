@@ -35,8 +35,8 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>5.4.1-12</sg2.version>
-    <elasticsearch.version>5.4.1</elasticsearch.version>
+    <sg2.version>5.4.2-14</sg2.version>
+    <elasticsearch.version>5.4.2</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>
 

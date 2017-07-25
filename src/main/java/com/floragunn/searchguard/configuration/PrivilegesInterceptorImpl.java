@@ -172,7 +172,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                                                                 @Override
                                                                                 public void onFailure(Exception e) {
-                                                                                    log.error("Failed to index (2) {}", e, e.toString());
+                                                                                    log.error("Failed to index (2) "+e, e);
                                                                                     ilatch.countDown();
                                                                                 }
                                                                             });
@@ -180,7 +180,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                                                 
                                                                 try {
                                                                     if (!ilatch.await(100, TimeUnit.SECONDS)) {
-                                                                        log.error("Timeout updating index");
+                                                                        log.error("Timeout creating index (1)");
                                                                     }
                                                                 } catch (InterruptedException e1) {
                                                                     log.error("Interrupted", e1);
@@ -196,7 +196,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                                         @Override
                                                         public void onFailure(Exception e) {
-                                                            log.error("Failed to search config (1) {}", e, e.toString());
+                                                            log.error("Failed to search config (1) "+e, e);
                                                             latch.countDown();
                                                         }
                                                     });
@@ -208,7 +208,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                     @Override
                                     public void onFailure(Exception e) {
-                                        log.error("Failed to create index {}", e, e.toString());
+                                        log.error("Failed to create index "+ e, e);
                                         latch.countDown();
                                     }
                                 });
@@ -249,10 +249,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                             if(action.contains("indices:data/write") 
                                                     || action.contains("indices:admin/mapping/put")
                                                     || action.contains("indices:admin/create")) {
-                                                ilatch.countDown();
+                                                
                                                 if(log.isTraceEnabled()) {
                                                     log.trace("skipped because of action="+action);
                                                 }
+                                                ilatch.countDown();
                                                 continue;
                                             }
 
@@ -276,7 +277,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                                 @Override
                                                 public void onFailure(Exception e) {
-                                                    log.error("Failed to index/update {}", e, e.toString());
+                                                    log.error("Failed to index/update "+e, e);
                                                     ilatch.countDown();
                                                 }
                                             });
@@ -284,7 +285,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                         
                                         try {
                                             if (!ilatch.await(100, TimeUnit.SECONDS)) {
-                                                log.error("Timeout updating index");
+                                                log.error("Timeout creating index (2)");
                                             }
                                         } catch (InterruptedException e1) {
                                             log.error("Interrupted", e1);
@@ -295,11 +296,10 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                     @Override
                                     public void onFailure(Exception e) {
-                                        log.error("Failed to search config {}", e, e.toString());
+                                        log.error("Failed to search config " + e, e);
                                         latch.countDown();
                                     }
                                 });
-                                latch.countDown();
                             }
                             
                             @Override
@@ -315,6 +315,9 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                         if (log.isTraceEnabled()) {
                             log.trace("No update needed for {}", newIndexName);
                         }
+                        
+                        latch.countDown();
+                        
                     }//end-else
                     
                 }//end on response for exists newIndexName

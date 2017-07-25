@@ -80,13 +80,30 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     
     private Set<String> upgradesChecked = new HashSet<String>();
 
-    public static void printLicenseInfo() {
-        System.out.println("***************************************************");
-        System.out.println("Search Guard Kibana Multitenancy module is not free");
-        System.out.println("software for commercial use in production.");
-        System.out.println("You have to obtain a license if you ");
-        System.out.println("use it in production.");
-        System.out.println("***************************************************");
+    private static void printLicenseInfo() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("******************************************************"+System.lineSeparator());
+        sb.append("Search Guard Kibana Multitenancy module is not free software"+System.lineSeparator());
+        sb.append("for commercial use in production."+System.lineSeparator());
+        sb.append("You have to obtain a license if you "+System.lineSeparator());
+        sb.append("use it in production."+System.lineSeparator());
+        sb.append(System.lineSeparator());
+        sb.append("See https://floragunn.com/searchguard-validate-license"+System.lineSeparator());
+        sb.append("In case of any doubt mail to <sales@floragunn.com>"+System.lineSeparator());
+        sb.append("*****************************************************");
+        
+        final String licenseInfo = sb.toString();
+        
+        if(!Boolean.getBoolean("sg.display_lic_none")) {
+            
+            if(!Boolean.getBoolean("sg.display_lic_only_stdout")) {
+                LogManager.getLogger(PrivilegesInterceptorImpl.class).warn(licenseInfo);
+                System.err.println(licenseInfo);
+            }
+    
+            System.out.println(licenseInfo);
+        }
+        
     }
 
     static {
@@ -180,7 +197,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                                                                 @Override
                                                                                 public void onFailure(Exception e) {
-                                                                                    log.error("Failed to index (2) {}", e, e.toString());
+                                                                                    log.error("Failed to index (2) "+e, e);
                                                                                     ilatch.countDown();
                                                                                 }
                                                                             });
@@ -188,7 +205,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                                                 
                                                                 try {
                                                                     if (!ilatch.await(100, TimeUnit.SECONDS)) {
-                                                                        log.error("Timeout updating index");
+                                                                        log.error("Timeout creating index (1)");
                                                                     }
                                                                 } catch (InterruptedException e1) {
                                                                     log.error("Interrupted", e1);
@@ -204,7 +221,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                                         @Override
                                                         public void onFailure(Exception e) {
-                                                            log.error("Failed to search config (1) {}", e, e.toString());
+                                                            log.error("Failed to search config (1) "+e, e);
                                                             latch.countDown();
                                                         }
                                                     });
@@ -216,7 +233,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                     @Override
                                     public void onFailure(Exception e) {
-                                        log.error("Failed to create index {}", e, e.toString());
+                                        log.error("Failed to create index "+ e, e);
                                         latch.countDown();
                                     }
                                 });
@@ -257,10 +274,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                             if(action.contains("indices:data/write") 
                                                     || action.contains("indices:admin/mapping/put")
                                                     || action.contains("indices:admin/create")) {
-                                                ilatch.countDown();
+                                                
                                                 if(log.isTraceEnabled()) {
                                                     log.trace("skipped because of action="+action);
                                                 }
+                                                ilatch.countDown();
                                                 continue;
                                             }
 
@@ -284,7 +302,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                                 @Override
                                                 public void onFailure(Exception e) {
-                                                    log.error("Failed to index/update {}", e, e.toString());
+                                                    log.error("Failed to index/update "+e, e);
                                                     ilatch.countDown();
                                                 }
                                             });
@@ -292,7 +310,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                         
                                         try {
                                             if (!ilatch.await(100, TimeUnit.SECONDS)) {
-                                                log.error("Timeout updating index");
+                                                log.error("Timeout creating index (2)");
                                             }
                                         } catch (InterruptedException e1) {
                                             log.error("Interrupted", e1);
@@ -303,11 +321,10 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                                     @Override
                                     public void onFailure(Exception e) {
-                                        log.error("Failed to search config {}", e, e.toString());
+                                        log.error("Failed to search config " + e, e);
                                         latch.countDown();
                                     }
                                 });
-                                latch.countDown();
                             }
                             
                             @Override
@@ -323,6 +340,9 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                         if (log.isTraceEnabled()) {
                             log.trace("No update needed for {}", newIndexName);
                         }
+                        
+                        latch.countDown();
+                        
                     }//end-else
                     
                 }//end on response for exists newIndexName
@@ -634,7 +654,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
         final boolean enabled = config.getAsBoolean("searchguard.dynamic.kibana.do_not_fail_on_forbidden", false);
 
-        if (!enabled) {
+        if (!enabled || leftOvers.size() == 0) {
             return false;
         }
 
@@ -652,6 +672,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             if(min == null || entry.getValue().size() < min.getValue().size()) {
                 min = entry;
             }
+        }
+        
+        if(min == null) {
+            log.warn("No valid leftover found");
+            return false;
         }
 
         final Set<String> leftOversIndex = new HashSet<String>();
@@ -820,7 +845,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             throw new ElasticsearchException("tenant must not be null here");
         }
         
-        return originalKibanaIndex+"_"+tenant.hashCode()+"_"+tenant.replaceAll("[^a-zA-Z0-9]+",EMPTY_STRING);
+        return originalKibanaIndex+"_"+tenant.hashCode()+"_"+tenant.toLowerCase().replaceAll("[^a-z0-9]+",EMPTY_STRING);
     }
     
     private static Map<String, Object> updateOrAddDefaultIndexPattern(final Map<String, Object> source, final Map<String, Object> newSource) {

@@ -31,6 +31,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest.Replaceable;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
@@ -150,7 +151,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                         }
 
                         client.admin().indices().prepareCreate(newIndexName).setSettings("number_of_shards", 1)
-                                .addMapping("config", "buildNum", "type=string,index=not_analyzed")
+                                .addMapping("config", "buildNum", "type=keyword")
                                 .execute(new ActionListener<CreateIndexResponse>() {
 
                                     @Override
@@ -177,10 +178,10 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                                                     final String id = hits[i].getId();
                                                                     
                                                                     if (log.isTraceEnabled()) {
-                                                                        log.trace("copy config for version {} -> {}", id, hits[i].getSource());
+                                                                        log.trace("copy config for version {} -> {}", id, hits[i].getSourceAsString());
                                                                     }
 
-                                                                    client.prepareIndex(newIndexName, "config").setId(id).setSource(hits[i].getSource())
+                                                                    client.prepareIndex(newIndexName, "config").setId(id).setSource(hits[i].getSourceAsMap())
                                                                             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                                                                             .execute(new ActionListener<IndexResponse>() {
 
@@ -268,8 +269,8 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                                 log.trace(i+". action "+action);
                                                 log.trace(i+". upsert config with _id={}", searchHit.getId()); 
                                                 log.trace(i+". orig _source={}", searchHit.getSourceAsString()); 
-                                                log.trace(i+". other _source={}", responseFromNewIndex.getHits().getAt(0).getSource()); 
-                                                log.trace(i+". upsert config with _source={}", updateOrAddDefaultIndexPattern(searchHit.getSource(), responseFromNewIndex.getHits().getAt(0).getSource()));                                        
+                                                log.trace(i+". other _source={}", responseFromNewIndex.getHits().getAt(0).getSourceAsString()); 
+                                                log.trace(i+". upsert config with _source={}", updateOrAddDefaultIndexPattern(searchHit.getSourceAsMap(), responseFromNewIndex.getHits().getAt(0).getSourceAsMap()));                                        
                                             }
                                             
                                             if(action.contains("indices:data/write") 
@@ -286,7 +287,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                             
                                             client.prepareIndex(newIndexName, "config")
                                             .setId(searchHit.getId())
-                                            .setSource(updateOrAddDefaultIndexPattern(searchHit.getSource(), responseFromNewIndex.getHits().getAt(0).getSource()))
+                                            .setSource(updateOrAddDefaultIndexPattern(searchHit.getSourceAsMap(), responseFromNewIndex.getHits().getAt(0).getSourceAsMap()))
                                             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                                             .execute(new ActionListener<IndexResponse>() {
 
@@ -524,7 +525,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
             if (request instanceof BulkRequest) {
 
-                for (ActionRequest ar : ((BulkRequest) request).requests()) {
+                for (DocWriteRequest<?> ar : ((BulkRequest) request).requests()) {
                     if (ar instanceof Replaceable) {
                         Replaceable replaceableRequest = (Replaceable) ar;
                         //log.debug("rplc  "+Arrays.toString(replaceableRequest.indices()) + " with "+new String[]{newIndexName}+" for "+request.getClass().getName());
@@ -595,7 +596,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         }
         
         if (request instanceof SingleShardRequest) {
-            ((SingleShardRequest) request).index(newIndexName);
+            ((SingleShardRequest<?>) request).index(newIndexName);
             kibOk = true;
         }
 
@@ -640,7 +641,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         
         //refresh request
         if (request instanceof ReplicationRequest) {
-            ((ReplicationRequest) request).index(newIndexName);
+            ((ReplicationRequest<?>) request).index(newIndexName);
              kibOk = true;
         } 
 
@@ -694,7 +695,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             
             if(request instanceof BulkRequest) {
 
-                for(ActionRequest ar: ((BulkRequest) request).requests()) {
+                for(DocWriteRequest<?> ar: ((BulkRequest) request).requests()) {
                     final boolean ok = applyIndexReduce0(ar, action, leftOversIndex);
                     if (!ok) {
                         return false;

@@ -54,8 +54,8 @@ import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -70,6 +70,7 @@ import com.google.common.cache.CacheBuilder;
 
 public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
+    private static final String KIBANA_6_TYPE = "doc";
     private final static IndicesOptions DEFAULT_INDICES_OPTIONS = IndicesOptions.lenientExpandOpen();
     private static final String USER_TENANT = "__user__";
 
@@ -92,7 +93,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         sb.append(System.lineSeparator());
         sb.append("See https://floragunn.com/searchguard-validate-license"+System.lineSeparator());
         sb.append("In case of any doubt mail to <sales@floragunn.com>"+System.lineSeparator());
-        sb.append("*****************************************************");
+        sb.append("*****************************************************"+System.lineSeparator());
         
         final String licenseInfo = sb.toString();
         
@@ -112,7 +113,6 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         printLicenseInfo();
     }
     
-    @Inject //omit for >= 5.2
     public PrivilegesInterceptorImpl(IndexNameExpressionResolver resolver, ClusterService clusterService, Client client,
             ThreadPool threadPool) {
         super(resolver, clusterService, client, threadPool);
@@ -149,9 +149,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                         if (log.isDebugEnabled()) {
                             log.debug("index {} not exists, create it", newIndexName); 
                         }
+                        
+                        final MappingMetaData originalMapping = clusterService.state().metaData().index(originalIndexName).mapping(KIBANA_6_TYPE);
 
                         client.admin().indices().prepareCreate(newIndexName).setSettings("number_of_shards", 1)
-                                .addMapping("config", "buildNum", "type=keyword")
+                                .addMapping(KIBANA_6_TYPE, originalMapping.getSourceAsMap())
                                 .execute(new ActionListener<CreateIndexResponse>() {
 
                                     @Override
@@ -164,7 +166,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                                 log.debug("index {} created, will now copy data", newIndexName);
                                             }
 //
-                                            client.prepareSearch(originalIndexName).setTypes("config").setSize(100)
+                                            client.prepareSearch(originalIndexName).setTypes(KIBANA_6_TYPE).setSize(100)
                                                     .execute(new ActionListener<SearchResponse>() {
 
                                                         @Override
@@ -177,11 +179,18 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                                                 for (int i = 0; i < hits.length; i++) {
                                                                     final String id = hits[i].getId();
                                                                     
+                                                                    if(!id.startsWith("config:")) {
+                                                                        if (log.isTraceEnabled()) {
+                                                                            log.trace("skip {}", id);
+                                                                        }
+                                                                        continue;
+                                                                    }
+                                                                    
                                                                     if (log.isTraceEnabled()) {
                                                                         log.trace("copy config for version {} -> {}", id, hits[i].getSourceAsString());
                                                                     }
 
-                                                                    client.prepareIndex(newIndexName, "config").setId(id).setSource(hits[i].getSourceAsMap())
+                                                                    client.prepareIndex(newIndexName, KIBANA_6_TYPE).setId(id).setSource(hits[i].getSourceAsMap())
                                                                             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                                                                             .execute(new ActionListener<IndexResponse>() {
 
@@ -248,12 +257,12 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                             log.trace("Index {} already exists, will update it because upgrade check needed", newIndexName);
                         }
                         
-                        client.prepareSearch(newIndexName).setTypes("config").setSize(1)
+                        client.prepareSearch(newIndexName).setTypes(KIBANA_6_TYPE).setSize(1)
                         .execute(new ActionListener<SearchResponse>() {
                             
                             @Override
                             public void onResponse(final SearchResponse responseFromNewIndex) {
-                                client.prepareSearch(originalIndexName).setTypes("config").setSize(1000)
+                                client.prepareSearch(originalIndexName).setTypes(KIBANA_6_TYPE).setSize(1000)
                                 .execute(new ActionListener<SearchResponse>() {
 
                                     @Override
@@ -273,6 +282,15 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                                 log.trace(i+". upsert config with _source={}", updateOrAddDefaultIndexPattern(searchHit.getSourceAsMap(), responseFromNewIndex.getHits().getAt(0).getSourceAsMap()));                                        
                                             }
                                             
+                                            if(!searchHit.getId().startsWith("config:")) {
+                                                
+                                                if(log.isTraceEnabled()) {
+                                                    log.trace("skipped because of id="+searchHit.getId());
+                                                }
+                                                ilatch.countDown();
+                                                continue;
+                                            }
+                                            
                                             if(action.contains("indices:data/write") 
                                                     || action.contains("indices:admin/mapping/put")
                                                     || action.contains("indices:admin/create")) {
@@ -285,7 +303,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                             }
 
                                             
-                                            client.prepareIndex(newIndexName, "config")
+                                            client.prepareIndex(newIndexName, KIBANA_6_TYPE)
                                             .setId(searchHit.getId())
                                             .setSource(updateOrAddDefaultIndexPattern(searchHit.getSourceAsMap(), responseFromNewIndex.getHits().getAt(0).getSourceAsMap()))
                                             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)

@@ -15,7 +15,7 @@
 
   <groupId>com.floragunn</groupId>
   <artifactId>dlic-search-guard-module-kibana-multitenancy</artifactId>
-  <version>6.0-HEAD-SNAPSHOT</version>
+  <version>6.x-HEAD-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Search Guard</name>
@@ -47,7 +47,7 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>6.0.x-HEAD-enterprise-SNAPSHOT</sg2.version>
+    <sg2.version>6.x-HEAD-SNAPSHOT</sg2.version>
     <elasticsearch.version>6.0.0-beta2</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>
@@ -206,10 +206,10 @@
           <archive>
             <manifest>
               <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-              <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
             </manifest>
             <manifestEntries>
-              <Built-By>floragunn</Built-By>
+              <Built-By>floragunn GmbH</Built-By>
+              <Build-Time>${maven.build.timestamp}</Build-Time>
             </manifestEntries>
           </archive>
         </configuration>

@@ -27,7 +27,7 @@
       <repository>
         <id>lucene-repository</id>
         <name>Lucene Maven</name>
-        <url>https://download.elasticsearch.org/lucenesnapshots/00142c9</url>
+        <url>https://download.elasticsearch.org/lucenesnapshots/a128fcb</url>
         <snapshots>
           <enabled>true</enabled>
           <updatePolicy>always</updatePolicy>

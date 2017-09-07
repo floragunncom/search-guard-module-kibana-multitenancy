@@ -601,8 +601,12 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                     }
                 }
 
+            } else if (request instanceof Replaceable) {
+                Replaceable replaceableRequest = (Replaceable) request;
+                replaceableRequest.indices(new String[]{newIndexName});
+                kibOk = true;
             } else {
-                log.warn("Can not handle composite request of type '" + request + "' here");
+                log.warn("Can not handle composite request of type '" + request.getClass() + "' here");
             }
         }
 
@@ -746,8 +750,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                         return false;
                     }
                 }
+                
+            } else if (request instanceof Replaceable) {
+                applyIndexReduce0(request, action, leftOversIndex);
             } else {
-                log.warn("Can not handle composite request of type '"+request+"' here");
+                log.warn("Can not handle composite request of type '"+request.getClass()+"' here");
             }
 
             return true;

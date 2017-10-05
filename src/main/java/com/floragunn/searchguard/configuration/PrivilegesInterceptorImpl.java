@@ -884,7 +884,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         }
         
         final Map<String, Object> map = new HashMap<String, Object>(source);
-        XContentHelper.update(source, newSource, true);
+        XContentHelper.update(map, newSource, true);
         //((Map<String, Object>)map.get("config")).put("defaultIndex", newSource.get.get("defaultIndex"));
         //map.put("buildNum", newSource.get("buildNum"));
         

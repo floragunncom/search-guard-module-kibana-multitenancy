@@ -59,6 +59,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -875,10 +876,22 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         return originalKibanaIndex+"_"+tenant.hashCode()+"_"+tenant.toLowerCase().replaceAll("[^a-z0-9]+",EMPTY_STRING);
     }
     
-    private static Map<String, Object> updateOrAddDefaultIndexPattern(final Map<String, Object> source, final Map<String, Object> newSource) {
+    private Map<String, Object> updateOrAddDefaultIndexPattern(final Map<String, Object> source, final Map<String, Object> newSource) {
+        
+        if(log.isTraceEnabled()) {
+            log.trace("updateOrAddDefaultIndexPattern source "+source);
+            log.trace("updateOrAddDefaultIndexPattern source "+newSource);
+        }
+        
         final Map<String, Object> map = new HashMap<String, Object>(source);
-        map.put("defaultIndex", newSource.get("defaultIndex"));
-        map.put("buildNum", newSource.get("buildNum"));
+        XContentHelper.update(source, newSource, true);
+        //((Map<String, Object>)map.get("config")).put("defaultIndex", newSource.get.get("defaultIndex"));
+        //map.put("buildNum", newSource.get("buildNum"));
+        
+        if(log.isTraceEnabled()) {
+            log.trace("updateOrAddDefaultIndexPattern result "+map);
+        }
+        
         return map;
     }
 

@@ -54,6 +54,7 @@ import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -152,7 +153,17 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                             log.debug("index {} not exists, create it", newIndexName); 
                         }
                         
-                        final MappingMetaData originalMapping = clusterService.state().metaData().index(originalIndexName).mapping(KIBANA_6_TYPE);
+                        final IndexMetaData originalIndexMd = clusterService.state().metaData().index(originalIndexName);
+                        
+                        if(originalIndexMd == null) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("No original index {} exists, so skip creation of {}", originalIndexName, newIndexName);
+                            }
+                            latch.countDown();
+                            return;
+                        }
+                        
+                        final MappingMetaData originalMapping = originalIndexMd.mapping(KIBANA_6_TYPE);
 
                         client.admin().indices().prepareCreate(newIndexName).setSettings("number_of_shards", 1)
                                 .addMapping(KIBANA_6_TYPE, originalMapping.getSourceAsMap())

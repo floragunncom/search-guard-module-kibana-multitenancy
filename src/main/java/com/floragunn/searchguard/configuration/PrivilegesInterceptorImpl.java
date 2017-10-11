@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
@@ -371,7 +372,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 @Override
                 public void onFailure(Exception e) { //failure for check if newIndexName exists
                     log.error("Failed to check if index {} exists due to "+e,newIndexName);
-                    log.error(e);
+                    log.error("Stacktrace " + ExceptionsHelper.stackTrace(e));
                     latch.countDown();
                 }
 

@@ -9,7 +9,7 @@ Multitenancy works only with ES 5.0.2 and higher and Search Guard Version 12 or 
 
 ## Downloads
 
-**Choose the module version matching your Elasticsearch version, and download the jar with dependencies here: **
+**Choose the module version matching your Elasticsearch version, and download the jar with dependencies here:**
 
 https://github.com/floragunncom/search-guard-module-kibana-multitenancy/wiki
 

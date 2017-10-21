@@ -9,20 +9,9 @@ Multitenancy works only with ES 5.0.2 and higher and Search Guard Version 12 or 
 
 ## Downloads
 
-* [Elasticsearch 5.4.x/5.5.x / Kibana Multitenancy module 5.4-4](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.4-4/dlic-search-guard-module-kibana-multitenancy-5.4-4-jar-with-dependencies.jar)
+**Choose the module version matching your Elasticsearch version, and download the jar with dependencies here:**
 
-* [Elasticsearch 5.3.x / Kibana Multitenancy module 5.3-4](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.3-4/dlic-search-guard-module-kibana-multitenancy-5.3-4-jar-with-dependencies.jar)
-
-* [Elasticsearch 5.2.x / Kibana Multitenancy module 5.2-2](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.2-2/dlic-search-guard-module-kibana-multitenancy-5.2-2-jar-with-dependencies.jar)
-
-* [Elasticsearch 5.1.x / Kibana Multitenancy module 5.1-2](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.1-2/dlic-search-guard-module-kibana-multitenancy-5.1-2-jar-with-dependencies.jar)
-
-* [Elasticsearch 5.0.2 / Kibana Multitenancy module 5.0-2](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-kibana-multitenancy/5.0-2/dlic-search-guard-module-kibana-multitenancy-5.0-2-jar-with-dependencies.jar)
-
-All versions:
-[Maven central](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.floragunn%22%20AND%20a%3A%22dlic-search-guard-module-kibana-multitenancy%22)
-
-**Choose the module version matching your Elasticsearch version, and download the jar with dependencies.**
+https://github.com/floragunncom/search-guard-module-kibana-multitenancy/wiki
 
 ## Installation
 

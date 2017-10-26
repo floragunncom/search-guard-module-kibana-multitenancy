@@ -233,6 +233,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                                                     }
                                                                 } catch (InterruptedException e1) {
                                                                     log.error("Interrupted", e1);
+                                                                    Thread.currentThread().interrupt();
                                                                 }
                                                                 
                                                                 latch.countDown();
@@ -347,6 +348,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                             }
                                         } catch (InterruptedException e1) {
                                             log.error("Interrupted", e1);
+                                            Thread.currentThread().interrupt();
                                         }
                                         
                                         latch.countDown();
@@ -397,6 +399,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             }
         } catch (InterruptedException e1) {
             log.error("Interrupted", e1);
+            Thread.currentThread().interrupt();
             return;
         }
 

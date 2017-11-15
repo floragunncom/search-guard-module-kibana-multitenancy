@@ -3,7 +3,7 @@
 ![Logo](https://raw.githubusercontent.com/floragunncom/sg-assets/master/logo/sg_dlic_small.png) 
 
 ## About this module
-This module for [Search Guard 5](https://github.com/floragunncom/search-guard) adds true multi-tenancy capabilities to Kibana.
+This module for [Search Guard 5+6](https://github.com/floragunncom/search-guard) adds true multi-tenancy capabilities to Kibana.
 Multitenancy works only with ES 5.0.2 and higher and Search Guard Version 12 or higher!
 
 

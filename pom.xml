@@ -16,7 +16,7 @@
     </parent>
 
     <artifactId>dlic-search-guard-module-kibana-multitenancy</artifactId>
-    <version>6.x-HEAD-SNAPSHOT</version>
+    <version>6.0-7.beta1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Search Guard Multitenancy</name>
@@ -25,7 +25,7 @@
     <inceptionYear>2017</inceptionYear>
 
     <properties>
-        <sg2.version>6.x-HEAD-SNAPSHOT</sg2.version>
+        <sg2.version>6.0.0-17.beta1api</sg2.version>
         <elasticsearch.version>6.0.0</elasticsearch.version>
         <dependency.locations.enabled>false</dependency.locations.enabled>
     </properties>

@@ -113,7 +113,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     }
 
     static {
-        printLicenseInfo();
+        //printLicenseInfo();
     }
     
     public PrivilegesInterceptorImpl(IndexNameExpressionResolver resolver, ClusterService clusterService, Client client,

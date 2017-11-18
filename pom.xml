@@ -5,8 +5,7 @@
   here is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS 
   OF ANY KIND, either express or implied. -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -16,7 +15,7 @@
     </parent>
 
     <artifactId>dlic-search-guard-module-kibana-multitenancy</artifactId>
-    <version>6.0-7.beta1-SNAPSHOT</version>
+    <version>6.0-7.beta1</version>
     <packaging>jar</packaging>
 
     <name>Search Guard Multitenancy</name>
@@ -35,7 +34,7 @@
         <connection>scm:git:git@github.com:floragunncom/search-guard-module-kibana-multitenancy.git</connection>
         <developerConnection>scm:git:git@github.com:floragunncom/search-guard-module-kibana-multitenancy.git
         </developerConnection>
-        <tag>HEAD</tag>
+        <tag>ves-6.0-7.beta1</tag>
     </scm>
 
     <issueManagement>
@@ -43,7 +42,7 @@
         <url>https://github.com/floragunncom/search-guard-module-kibana-multitenancy/issues</url>
     </issueManagement>
 
-    <contributors/>
+    <contributors />
 
     <dependencies>
         <dependency>

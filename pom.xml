@@ -26,7 +26,7 @@
 
     <properties>
         <sg2.version>6.x-HEAD-SNAPSHOT</sg2.version>
-        <elasticsearch.version>6.0.0</elasticsearch.version>
+        <elasticsearch.version>6.1.0</elasticsearch.version>
         <dependency.locations.enabled>false</dependency.locations.enabled>
     </properties>
 

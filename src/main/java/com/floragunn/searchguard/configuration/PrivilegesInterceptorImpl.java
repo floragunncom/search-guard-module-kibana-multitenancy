@@ -165,7 +165,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                         
                         final MappingMetaData originalMapping = originalIndexMd.mapping(KIBANA_6_TYPE);
 
-                        client.admin().indices().prepareCreate(newIndexName).setSettings("number_of_shards", 1)
+                        final Map<String, Object> indexSettings = new HashMap<>(1);
+                        indexSettings.put("number_of_shards", 1);
+                        
+                        client.admin().indices().prepareCreate(newIndexName)
+                                .setSettings(indexSettings)
                                 .addMapping(KIBANA_6_TYPE, originalMapping.getSourceAsMap())
                                 .execute(new ActionListener<CreateIndexResponse>() {
 

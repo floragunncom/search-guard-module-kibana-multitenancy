@@ -196,6 +196,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                                                                         if (log.isTraceEnabled()) {
                                                                             log.trace("skip {}", id);
                                                                         }
+                                                                        ilatch.countDown();
                                                                         continue;
                                                                     }
                                                                     

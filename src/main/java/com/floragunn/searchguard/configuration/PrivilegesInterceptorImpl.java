@@ -626,8 +626,6 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 Replaceable replaceableRequest = (Replaceable) request;
                 replaceableRequest.indices(new String[]{newIndexName});
                 kibOk = true;
-            } else {
-                log.warn("Can not handle composite request of type '" + request.getClass() + "' here");
             }
         }
 

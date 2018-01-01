@@ -1,0 +1,15 @@
+sg_all_access:
+  cluster:
+    - '*'
+  indices:
+    '*':
+      '*':  
+        - '*'
+        
+sg_worf:
+  cluster:
+    - '*'
+  indices:
+    'worf*':
+      '*':  
+        - '*'

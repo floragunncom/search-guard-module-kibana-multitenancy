@@ -32,7 +32,7 @@ public class RolesMappingApiTest extends AbstractRestApiUnitTest {
 
 		setup();
 
-		rh.keystore = "kirk-keystore.jks";
+		rh.keystore = "restapi/kirk-keystore.jks";
 		rh.sendHTTPClientCertificate = true;
 
 		// check rolesmapping exists, old config api

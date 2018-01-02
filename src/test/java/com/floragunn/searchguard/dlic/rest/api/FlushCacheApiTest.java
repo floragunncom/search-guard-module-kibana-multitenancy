@@ -30,7 +30,7 @@ public class FlushCacheApiTest extends AbstractRestApiUnitTest {
 		setup();
 		
 		// Only DELETE is allowed for flush cache
-		rh.keystore = "kirk-keystore.jks";
+		rh.keystore = "restapi/kirk-keystore.jks";
 		rh.sendHTTPClientCertificate = true;
 
 		// GET

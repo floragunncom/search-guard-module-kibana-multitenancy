@@ -36,7 +36,7 @@ public class UserApiTest extends AbstractRestApiUnitTest {
 
 		setup();
 
-		rh.keystore = "kirk-keystore.jks";
+		rh.keystore = "restapi/kirk-keystore.jks";
 		rh.sendHTTPClientCertificate = true;
 
 		// initial configuration, 5 users

@@ -28,7 +28,7 @@ public class GetConfigurationApiTest extends AbstractRestApiUnitTest {
 	public void testGetConfiguration() throws Exception {
 
 		setup();
-		rh.keystore = "kirk-keystore.jks";
+		rh.keystore = "restapi/kirk-keystore.jks";
 		rh.sendHTTPClientCertificate = true;
 
 		// wrong config name -> bad request

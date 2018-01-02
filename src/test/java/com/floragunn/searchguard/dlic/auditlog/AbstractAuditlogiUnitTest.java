@@ -43,9 +43,9 @@ public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
 
         builder.put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.keystore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath("node-0-keystore.jks"))
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"));
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"));
         
         return builder.put(additionalSettings).build();
     }
@@ -54,7 +54,7 @@ public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
         final boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
         final String keystore = rh.keystore;
         rh.sendHTTPClientCertificate = true;
-        rh.keystore = "kirk-keystore.jks";
+        rh.keystore = "auditlog/kirk-keystore.jks";
         rh.executePutRequest("sf", null, new Header[0]);
         rh.executePutRequest("sf/public/0?refresh", "{\"number\" : \"NCC-1701-D\"}", new Header[0]);
         rh.executePutRequest("sf/public/0?refresh", "{\"some\" : \"value\"}", new Header[0]);

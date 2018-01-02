@@ -33,7 +33,7 @@ public class RolesApiTest extends AbstractRestApiUnitTest {
 
 		setup();
 
-		rh.keystore = "kirk-keystore.jks";
+		rh.keystore = "restapi/kirk-keystore.jks";
 		rh.sendHTTPClientCertificate = true;
 
 		// check roles exists

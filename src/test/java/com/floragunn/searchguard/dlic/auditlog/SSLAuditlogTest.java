@@ -37,11 +37,11 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENABLE_SSL, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, 
-                        FileHelper.getAbsoluteFilePathFromClassPath("chain-ca.pem"))
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/chain-ca.pem"))
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMCERT_FILEPATH, 
-                        FileHelper.getAbsoluteFilePathFromClassPath("spock.crtfull.pem"))
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/spock.crtfull.pem"))
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_FILEPATH, 
-                        FileHelper.getAbsoluteFilePathFromClassPath("spock.key.pem"))
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/spock.key.pem"))
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_USERNAME, 
                         "admin")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_PASSWORD, 
@@ -72,11 +72,11 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENABLE_SSL, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, 
-                        FileHelper.getAbsoluteFilePathFromClassPath("chain-ca.pem"))
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/chain-ca.pem"))
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMCERT_FILEPATH, 
-                        FileHelper.getAbsoluteFilePathFromClassPath("kirk.crtfull.pem"))
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/kirk.crtfull.pem"))
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_FILEPATH, 
-                        FileHelper.getAbsoluteFilePathFromClassPath("kirk.key.pem"))
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/kirk.key.pem"))
                 .build();
         
         setup(additionalSettings);
@@ -100,7 +100,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENABLE_SSL, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, 
-                        FileHelper.getAbsoluteFilePathFromClassPath("chain-ca.pem"))
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/chain-ca.pem"))
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_USERNAME, 
                         "admin")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_PASSWORD, 

@@ -34,7 +34,7 @@ public class SearchGuardApiAccessTest extends AbstractRestApiUnitTest {
 						.getStatusCode());
 
 		// test with non-admin cert, must fail
-		rh.keystore = "node-0-keystore.jks";
+		rh.keystore = "restapi/node-0-keystore.jks";
 		rh.sendHTTPClientCertificate = true;
 		Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED,
 				rh.executeGetRequest("_searchguard/api/configuration/internalusers").getStatusCode());

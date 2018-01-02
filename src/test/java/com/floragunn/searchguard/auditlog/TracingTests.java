@@ -37,6 +37,11 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class TracingTests extends SingleClusterTest {
 
+    @Override
+    protected String getResourceFolder() {
+        return "auditlog";
+    }
+    
     @Test
     public void testHTTPTrace() throws Exception {
         

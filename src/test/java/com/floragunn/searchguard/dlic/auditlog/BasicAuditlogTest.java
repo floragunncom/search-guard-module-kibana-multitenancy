@@ -72,8 +72,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
         Settings additionalSettings = Settings.builder()
                 .put("searchguard.ssl.http.enabled",true)
-                .put("searchguard.ssl.http.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("node-0-keystore.jks"))
-                .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+                .put("searchguard.ssl.http.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("auditlog/node-0-keystore.jks"))
+                .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
@@ -472,7 +472,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         final boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
         final String keystore = rh.keystore;
         rh.sendHTTPClientCertificate = true;
-        rh.keystore = "kirk-keystore.jks";
+        rh.keystore = "auditlog/kirk-keystore.jks";
         HttpResponse res = rh.executeGetRequest("_cat/indices", new Header[0]);
         rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
         rh.keystore = keystore;

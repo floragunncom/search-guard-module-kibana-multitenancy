@@ -20,7 +20,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +64,6 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.configuration.PrivilegesEvaluator.IndexType;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.google.common.cache.Cache;
@@ -697,7 +695,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         }
     }
 
-    @Override
+    /*@Override
     public boolean replaceAllowedIndices(final ActionRequest request, final String action, final User user, final Settings config,
             final Map<String, Set<PrivilegesEvaluator.IndexType>> leftOvers) {
 
@@ -788,7 +786,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             return applyIndexReduce0(request, action, leftOversIndex);
         }
     }
-
+*/
     private boolean applyIndexReduce0(final Object request, final String action, final Set<String> leftOversIndex) {
 
         if (request instanceof Replaceable) {

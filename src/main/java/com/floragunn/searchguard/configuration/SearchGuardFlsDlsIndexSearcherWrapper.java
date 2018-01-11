@@ -24,6 +24,7 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.IndexSearcher;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.IndexService;
@@ -31,6 +32,7 @@ import org.elasticsearch.index.engine.EngineException;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.query.QueryShardContext;
 
+import com.floragunn.searchguard.compliance.fieldhistory.FieldReadCallback;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.WildcardMatcher;
@@ -42,42 +44,21 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
     private static final Set<String> metaFields = Sets.union(Sets.newHashSet("_source", "_version"), 
             Sets.newHashSet(MapperService.getAllMetaFields()));
     private final NamedXContentRegistry namedXContentRegistry;
+    private final FieldReadCallback fieldReadCallback;
 
-    private static void printLicenseInfo() {
-        final StringBuilder sb = new StringBuilder();
-        sb.append("******************************************************"+System.lineSeparator());
-        sb.append("Searchguard DLS/FLS(+) Security is not free software"+System.lineSeparator());
-        sb.append("for commercial use in production."+System.lineSeparator());
-        sb.append("You have to obtain a license if you "+System.lineSeparator());
-        sb.append("use it in production."+System.lineSeparator());
-        sb.append("(+) Document-/Fieldlevel"+System.lineSeparator());
-        sb.append(System.lineSeparator());
-        sb.append("See https://floragunn.com/searchguard-validate-license"+System.lineSeparator());
-        sb.append("In case of any doubt mail to <sales@floragunn.com>"+System.lineSeparator());
-        sb.append("*****************************************************"+System.lineSeparator());
-        
-        final String licenseInfo = sb.toString();
-        
-        if(!Boolean.getBoolean("sg.display_lic_none")) {
-            
-            if(!Boolean.getBoolean("sg.display_lic_only_stdout")) {
-                LogManager.getLogger(SearchGuardFlsDlsIndexSearcherWrapper.class).warn(licenseInfo);
-                System.err.println(licenseInfo);
-            }
-    
-            System.out.println(licenseInfo);
-        }
-        
-    }
-
-    static {
-        //printLicenseInfo();
-    }
-
-    public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings, final AdminDNs adminDNs) {
+    public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings, 
+            final AdminDNs adminDNs, final ClusterService clusterService) {
         super(indexService, settings, adminDNs);
         this.queryShardContext = indexService.newQueryShardContext(0, null, () -> 0L, null);
         this.namedXContentRegistry = indexService.xContentRegistry();
+        
+        if(settings.getAsBoolean("searchguard.compliance.fieldHistory.read.enabled", true)) {
+            fieldReadCallback = new FieldReadCallback(threadContext, indexService, clusterService);
+        } else {
+            fieldReadCallback =  null;
+        }
+        
+        
     }
 
     @Override
@@ -103,7 +84,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
             unparsedDlsQueries = queries.get(dlsEval);
         }
         
-        return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields, DlsQueryParser.parse(unparsedDlsQueries, queryShardContext, this.namedXContentRegistry));
+        return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields, DlsQueryParser.parse(unparsedDlsQueries, queryShardContext, this.namedXContentRegistry), fieldReadCallback);
     }
         
         

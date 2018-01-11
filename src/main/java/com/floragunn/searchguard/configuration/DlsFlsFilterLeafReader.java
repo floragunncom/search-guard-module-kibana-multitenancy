@@ -58,6 +58,7 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 
+import com.floragunn.searchguard.compliance.fieldhistory.FieldReadCallback;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
@@ -76,12 +77,13 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
     private String[] excludes;
     private boolean canOptimize = true;
     private Function<Map<String, ?>, Map<String, Object>> filterFunction;
+    private final FieldReadCallback fieldReadCallback;
 
-    DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includesExcludes, final Query dlsQuery) {
+    DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includesExcludes, final Query dlsQuery, final FieldReadCallback fieldReadCallback) {
         super(delegate);
+        this.fieldReadCallback = fieldReadCallback;
         flsEnabled = includesExcludes != null && !includesExcludes.isEmpty();
         dlsEnabled = dlsQuery != null;
-        
         if (flsEnabled) {
 
             final FieldInfos infos = delegate.getFieldInfos();
@@ -203,15 +205,17 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
         private final Set<String> includes;
         private final Query dlsQuery;
+        private final FieldReadCallback fieldReadCallback;
 
-        public DlsFlsSubReaderWrapper(final Set<String> includes, final Query dlsQuery) {
+        public DlsFlsSubReaderWrapper(final Set<String> includes, final Query dlsQuery, final FieldReadCallback fieldReadCallback) {
             this.includes = includes;
             this.dlsQuery = dlsQuery;
+            this.fieldReadCallback = fieldReadCallback;
         }
 
         @Override
         public LeafReader wrap(final LeafReader reader) {
-            return new DlsFlsFilterLeafReader(reader, includes, dlsQuery);
+            return new DlsFlsFilterLeafReader(reader, includes, dlsQuery, fieldReadCallback);
         }
 
     }
@@ -220,16 +224,18 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
         private final Set<String> includes;
         private final Query dlsQuery;
+        private final FieldReadCallback fieldReadCallback;
 
-        public DlsFlsDirectoryReader(final DirectoryReader in, final Set<String> includes, final Query dlsQuery) throws IOException {
-            super(in, new DlsFlsSubReaderWrapper(includes, dlsQuery));
+        public DlsFlsDirectoryReader(final DirectoryReader in, final Set<String> includes, final Query dlsQuery, final FieldReadCallback fieldReadCallback) throws IOException {
+            super(in, new DlsFlsSubReaderWrapper(includes, dlsQuery, fieldReadCallback));
             this.includes = includes;
             this.dlsQuery = dlsQuery;
+            this.fieldReadCallback = fieldReadCallback;
         }
 
         @Override
         protected DirectoryReader doWrapDirectoryReader(final DirectoryReader in) throws IOException {
-            return new DlsFlsDirectoryReader(in, includes, dlsQuery);
+            return new DlsFlsDirectoryReader(in, includes, dlsQuery, fieldReadCallback);
         }
         
         @Override
@@ -240,10 +246,11 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
     @Override
     public void document(final int docID, final StoredFieldVisitor visitor) throws IOException {
+        
         if(flsEnabled) {
-            in.document(docID, new FlsStoredFieldVisitor(visitor));
+            in.document(docID, new ComplianceAwareStoredFieldVisitor(new FlsStoredFieldVisitor(visitor)));
         } else {
-            in.document(docID, visitor);
+            in.document(docID, new ComplianceAwareStoredFieldVisitor(visitor));
         }
     }
 
@@ -265,7 +272,98 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         
         return flsFieldInfos;
     }
+    
+    private class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
 
+        private final StoredFieldVisitor delegate;
+
+        public ComplianceAwareStoredFieldVisitor(final StoredFieldVisitor delegate) {
+            super();
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void binaryField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+                
+            if(fieldReadCallback != null) {
+                fieldReadCallback.fieldRead(fieldInfo, value);
+            }
+            
+            delegate.binaryField(fieldInfo, value);
+        }
+
+        
+        @Override
+        public Status needsField(final FieldInfo fieldInfo) throws IOException {
+            return delegate.needsField(fieldInfo);
+        }
+
+        @Override
+        public int hashCode() {
+            return delegate.hashCode();
+        }
+
+        @Override
+        public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+            
+            if(fieldReadCallback != null) {
+                fieldReadCallback.fieldRead(fieldInfo, value);
+            }
+            
+            delegate.stringField(fieldInfo, value);
+        }
+
+        @Override
+        public void intField(final FieldInfo fieldInfo, final int value) throws IOException {
+            
+            if(fieldReadCallback != null) {
+                fieldReadCallback.fieldRead(fieldInfo, value);
+            }
+            
+            delegate.intField(fieldInfo, value);
+        }
+
+        @Override
+        public void longField(final FieldInfo fieldInfo, final long value) throws IOException {
+            
+            if(fieldReadCallback != null) {
+                fieldReadCallback.fieldRead(fieldInfo, value);
+            }
+            
+            delegate.longField(fieldInfo, value);
+        }
+
+        @Override
+        public void floatField(final FieldInfo fieldInfo, final float value) throws IOException {
+            
+            if(fieldReadCallback != null) {
+                fieldReadCallback.fieldRead(fieldInfo, value);
+            }
+            
+            delegate.floatField(fieldInfo, value);
+        }
+
+        @Override
+        public void doubleField(final FieldInfo fieldInfo, final double value) throws IOException {
+            
+            if(fieldReadCallback != null) {
+                fieldReadCallback.fieldRead(fieldInfo, value);
+            }
+            
+            delegate.doubleField(fieldInfo, value);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            return delegate.equals(obj);
+        }
+
+        @Override
+        public String toString() {
+            return delegate.toString();
+        }
+
+    }
 
     private class FlsStoredFieldVisitor extends StoredFieldVisitor {
 

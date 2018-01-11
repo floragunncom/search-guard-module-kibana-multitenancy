@@ -11,13 +11,8 @@ import java.util.Objects;
 import org.apache.lucene.index.FieldInfo;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.Uid;
@@ -26,6 +21,7 @@ import org.joda.time.DateTimeZone;
 
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.github.wnameless.json.flattener.JsonFlattener;
 
@@ -43,12 +39,21 @@ public class FieldReadCallback {
         this.index = Objects.requireNonNull(indexService).index();
         //Objects.requireNonNull(indexService).cache().
     }
+    
+    private boolean recordField(final String fieldName) {
+        String indexName = index.getName();
+        return !WildcardMatcher.match("secret*", fieldName);
+    }
 
     //TODO  We need to deal with caching!!
     //Currently we disable caching (and realtime requests) when FLS or DLS is apply
     //For fieldhistory this may not be appropriate because of performance reasons
     //So we must check this
     public void binaryFieldRead(final FieldInfo fieldInfo, final byte[] fieldValue, Object key) { 
+        if(!recordField(fieldInfo.name)) {
+            return;
+        }
+        
         if(fieldInfo.name.equals("_source")) {
             //final BytesReference bytesRef = new BytesArray((byte[])fieldValue);
             //final Tuple<XContentType, Map<String, Object>> bytesRefTuple = XContentHelper.convertToMap(bytesRef, false, XContentType.JSON);
@@ -56,8 +61,12 @@ public class FieldReadCallback {
             Map<String, Object> filteredSource = new JsonFlattener(new String(fieldValue, StandardCharsets.UTF_8)).flattenAsMap();
             for(String k: filteredSource.keySet()) {
                 //System.out.println(k+"="+filteredSource.get(k)+" -- "+filteredSource.get(k).getClass());
+                if(!recordField(k)) {
+                    return;
+                }
                 fieldRead0(k, filteredSource.get(k), key);
             }
+            
             //fieldRead0(fieldInfo, JsonFlattener.flattenAsMap(new String(fieldValue, StandardCharsets.UTF_8)), key);
         } else if (fieldInfo.name.equals("_id")) {
             fieldRead0(fieldInfo.name, Uid.decodeId((byte[]) fieldValue), key);
@@ -67,10 +76,16 @@ public class FieldReadCallback {
     }
     
     public void stringFieldRead(final FieldInfo fieldInfo, final byte[] fieldValue, Object key) { 
+        if(!recordField(fieldInfo.name)) {
+            return;
+        }
         fieldRead0(fieldInfo.name, new String((byte[]) fieldValue, StandardCharsets.UTF_8), key);
     }
     
     public void numericFieldRead(final FieldInfo fieldInfo, final Number fieldValue, Object key) { 
+        if(!recordField(fieldInfo.name)) {
+            return;
+        }
         fieldRead0(fieldInfo.name, fieldValue, key);
     }
     

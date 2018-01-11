@@ -246,16 +246,25 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
     @Override
     public void document(final int docID, final StoredFieldVisitor visitor) throws IOException {
-        
-        ComplianceAwareStoredFieldVisitor cv = new ComplianceAwareStoredFieldVisitor(visitor);
-        
-        if(flsEnabled) {
-            in.document(docID, new FlsStoredFieldVisitor(cv));
+        if(fieldReadCallback != null) {
+            final ComplianceAwareStoredFieldVisitor cv = new ComplianceAwareStoredFieldVisitor(visitor);
+            
+            if(flsEnabled) {
+                in.document(docID, new FlsStoredFieldVisitor(cv));
+            } else {
+                in.document(docID, cv);
+            }
+            
+            cv.finished();
         } else {
-            in.document(docID, cv);
+            
+            if(flsEnabled) {
+                in.document(docID, new FlsStoredFieldVisitor(visitor));
+            } else {
+                in.document(docID, visitor);
+            }
         }
         
-        cv.finished();
     }
 
     private boolean isFls(final String name) {
@@ -287,12 +296,8 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         }
 
         @Override
-        public void binaryField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
-                
-            if(fieldReadCallback != null) {
-                fieldReadCallback.binaryFieldRead(fieldInfo, value, this);
-            }
-            
+        public void binaryField(final FieldInfo fieldInfo, final byte[] value) throws IOException {         
+            fieldReadCallback.binaryFieldRead(fieldInfo, value, this);        
             delegate.binaryField(fieldInfo, value);
         }
 
@@ -310,9 +315,8 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         @Override
         public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
             
-            if(fieldReadCallback != null) {
+
                 fieldReadCallback.stringFieldRead(fieldInfo, value, this);
-            }
             
             delegate.stringField(fieldInfo, value);
         }
@@ -320,9 +324,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         @Override
         public void intField(final FieldInfo fieldInfo, final int value) throws IOException {
             
-            if(fieldReadCallback != null) {
                 fieldReadCallback.numericFieldRead(fieldInfo, value, this);
-            }
             
             delegate.intField(fieldInfo, value);
         }
@@ -330,9 +332,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         @Override
         public void longField(final FieldInfo fieldInfo, final long value) throws IOException {
             
-            if(fieldReadCallback != null) {
                 fieldReadCallback.numericFieldRead(fieldInfo, value, this);
-            }
             
             delegate.longField(fieldInfo, value);
         }
@@ -340,9 +340,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         @Override
         public void floatField(final FieldInfo fieldInfo, final float value) throws IOException {
             
-            if(fieldReadCallback != null) {
                 fieldReadCallback.numericFieldRead(fieldInfo, value, this);
-            }
             
             delegate.floatField(fieldInfo, value);
         }
@@ -350,9 +348,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         @Override
         public void doubleField(final FieldInfo fieldInfo, final double value) throws IOException {
             
-            if(fieldReadCallback != null) {
                 fieldReadCallback.numericFieldRead(fieldInfo, value, this);
-            }
             
             delegate.doubleField(fieldInfo, value);
         }

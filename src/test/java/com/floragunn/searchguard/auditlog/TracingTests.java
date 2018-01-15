@@ -328,7 +328,7 @@ public class TracingTests extends SingleClusterTest {
 
     @Test
     public void testAdvancedMapping() throws Exception {
-        Settings settings = Settings.builder().put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "debug").build();
+        Settings settings = Settings.builder().put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "log4j").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (TransportClient tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {
@@ -344,23 +344,25 @@ public class TracingTests extends SingleClusterTest {
 
         RestHelper rh = nonSslRestHelper();
         System.out.println("############ write into mapping 1");
-        String data1 = FileHelper.loadFile("data1.json");
-        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
+        String data1 = FileHelper.loadFile("auditlog/data1.json");
+        String data2 = FileHelper.loadFile("auditlog/data1mod.json");
+        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("admin", "admin")));
+        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("admin", "admin")));
+        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data2, encodeBasicHeader("admin", "admin")));
 
         System.out.println("############ write into mapping 2");
-        System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
+        System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("admin", "admin")));
+        System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("admin", "admin")));
 
         System.out.println("############ write into mapping 3");
-        String parent = FileHelper.loadFile("data2.json");
-        String child = FileHelper.loadFile("data3.json");
-        System.out.println(rh.executePutRequest("myindex3/mytype3/1?refresh", parent, encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println(rh.executePutRequest("myindex3/mytype3/2?routing=1&refresh", child, encodeBasicHeader("nagilum", "nagilum")));
+        String parent = FileHelper.loadFile("auditlog/data2.json");
+        String child = FileHelper.loadFile("auditlog/data3.json");
+        System.out.println(rh.executePutRequest("myindex3/mytype3/1?refresh", parent, encodeBasicHeader("admin", "admin")));
+        System.out.println(rh.executePutRequest("myindex3/mytype3/2?routing=1&refresh", child, encodeBasicHeader("admin", "admin")));
 
         System.out.println("############ write into mapping 4");
-        System.out.println(rh.executePutRequest("myindex4/mytype4/1?refresh", parent, encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println(rh.executePutRequest("myindex4/mytype4/2?routing=1&refresh", child, encodeBasicHeader("nagilum", "nagilum")));
+        System.out.println(rh.executePutRequest("myindex4/mytype4/1?refresh", parent, encodeBasicHeader("admin", "admin")));
+        System.out.println(rh.executePutRequest("myindex4/mytype4/2?routing=1&refresh", child, encodeBasicHeader("admin", "admin")));
     }
 
 }

@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,9 +27,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.engine.Engine.Delete;
 import org.elasticsearch.index.engine.Engine.DeleteResult;
 import org.elasticsearch.index.engine.Engine.Index;
@@ -40,13 +44,15 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flipkart.zjsonpatch.JsonDiff;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
-import com.google.common.collect.Maps;
 
 public abstract class AbstractAuditLog implements AuditLog {
 
@@ -72,6 +78,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             Arrays.asList(new String[]{"kibanaserver"});
 
     private final String searchguardIndex;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     protected AbstractAuditLog(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super();
@@ -407,17 +414,20 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addComplianceDocVersion(result.getVersion());
         msg.addComplianceOperation(result.isCreated()?Operation.CREATE:Operation.UPDATE);
 
-        if(originalIndex != null && originalIndex.isExists()) {
+        if(originalIndex != null && originalIndex.isExists() && originalIndex.internalSourceRef() != null) {
             //TODO store fields if _source is disabled
-            if(originalIndex.internalSourceRef() == null || currentIndex.source() == null) {
-                log.error("Unable to retrieve content for doc "+currentIndex.id()+" in "+shardId.getIndexName());
-            } else {
-                final Map<String, Object> originalSource = XContentHelper.convertToMap(originalIndex.internalSourceRef(), true).v2();
-                final Map<String, Object> currentSource =  XContentHelper.convertToMap(currentIndex.source(), true).v2();
-                msg.addComplianceWriteDiff(Maps.difference(originalSource, currentSource));
+            try {
+                final String originalSource = XContentHelper.convertToJson(originalIndex.internalSourceRef(), false, XContentType.JSON);
+                final String currentSource =  XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
+                final JsonNode diffnode = JsonDiff.asJson(mapper.readTree(originalSource), mapper.readTree(currentSource));
+                msg.addComplianceWriteDiff(diffnode.size() == 0?"":diffnode.toString());
+            } catch (IOException e) {
+                log.error("Unable to generate diff",e);
             }
-        }
 
+        } else {
+            msg.addBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+        }
         save(msg);
     }
 

@@ -134,13 +134,18 @@
         </exclusion>
       </exclusions>
     </dependency>
-    
-    <dependency>
-  <groupId>com.github.wnameless</groupId>
-  <artifactId>json-flattener-java7</artifactId>
-  <version>0.4.1</version>
-</dependency>
 
+    <dependency>
+      <groupId>com.github.wnameless</groupId>
+      <artifactId>json-flattener-java7</artifactId>
+      <version>0.4.1</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.flipkart.zjsonpatch</groupId>
+      <artifactId>zjsonpatch</artifactId>
+      <version>0.4.1</version>
+    </dependency>
     <!-- Only test scoped dependencies hereafter -->
 
     <dependency>

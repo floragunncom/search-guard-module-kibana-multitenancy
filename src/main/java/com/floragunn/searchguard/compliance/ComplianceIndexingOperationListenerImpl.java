@@ -60,18 +60,17 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
     @Override
     public void postDelete(ShardId shardId, Delete delete, DeleteResult result) {
         Objects.requireNonNull(is);
-        if(result.isFound() && delete.origin() == org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
+        if(!result.hasFailure() && result.isFound() && delete.origin() == org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
             auditlog.logDocumentDeleted(shardId, delete, result);
         }
     }
 
-    private final Map<Long, GetResult> seq = new HashMap<>();
+    private final Map<String, GetResult> seq = new HashMap<>();
 
     @Override
     public Index preIndex(ShardId shardId, Index index) {
         Objects.requireNonNull(is);
 
-        //System.out.println("SEQ pre "+index.seqNo());
         final IndexShard shard;
 
         if (index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
@@ -81,6 +80,9 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
         if((shard = is.getShardOrNull(shardId.getId())) == null) {
             return index;
         }
+
+
+        //System.out.println("SEQ pre "+index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id()+" for "+Thread.currentThread().getName());
 
         //System.out.println("orig source "+index.parsedDoc().source().utf8ToString());
         //System.out.println("orig source docs size "+index.parsedDoc().docs().size());
@@ -95,7 +97,7 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
         //TODO stored fields???
 
         if (shard.isReadAllowed()) {
-
+            try {
             MapperService mapperService = shard.mapperService();
             final boolean sourceMapperEnabled = mapperService.documentMapper(index.type()).sourceMapper().enabled();
 
@@ -117,13 +119,20 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
 
             //storedFields.toArray(new String[0])
 
-            final GetResult getResult = shard
-                    .getService()
-                    .get(index.type(), index.id(), new String[]{RoutingFieldMapper.NAME, ParentFieldMapper.NAME}, true,
-                            index.version(), index.versionType(), FetchSourceContext.FETCH_SOURCE);
 
-            if (getResult.isExists()) {
-                 seq.put(index.seqNo(), getResult);
+                final GetResult getResult = shard
+                        .getService()
+                        .get(index.type(), index.id(), new String[]{RoutingFieldMapper.NAME, ParentFieldMapper.NAME}, true,
+                                index.version(), index.versionType(), FetchSourceContext.FETCH_SOURCE);
+
+                if (getResult.isExists()) {
+                     seq.put(index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id(), getResult);
+                     //System.out.println("exists "+index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+                } else {
+                   // System.out.println("NOT exists "+index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+                }
+            } catch (Exception e) {
+                System.out.println(e.toString());
             }
 
             //if (getResult.isExists()) {
@@ -165,6 +174,8 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
 
                 //System.out.println("old source " + updatedSourceAsMap);
             //}
+        } else {
+            //System.out.println("Cannot read shard for "+index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
         }
         //System.out.println("current source: " + index.source().utf8ToString());
         // pendig.put(shardId.getIndexName()+"#"+index.id(), index)
@@ -179,16 +190,17 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
 
     @Override
     public void postIndex(ShardId shardId, Index index, Exception ex) {
-        seq.remove(index.seqNo());
+        seq.remove(index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+        //System.out.println("removed "+index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id()+" due to "+ex);
     }
 
     @Override
     public void postIndex(ShardId shardId, Index index, IndexResult result) {
-        final GetResult previousContent = seq.remove(index.seqNo());
+        final GetResult previousContent = seq.remove(index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
         Objects.requireNonNull(is);
 
         final IndexShard shard;
-        if (index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
+        if (result.hasFailure() || index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
             return;
         }
 
@@ -196,12 +208,17 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
             return;
         }
 
+        //System.out.println("SEQ post "+index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id()+" for "+Thread.currentThread().getName());
         if(previousContent == null) {
             //no previous content
-            log.warn("No previous content and not created for {}/{}", shardId.getIndexName(), index.id());
+            if(!result.isCreated())
+            log.warn("No previous content and not created (its an update but do not find orig source) for {}", index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+
             //assert result.isCreated():"No previous content and not created";
         } else {
-            log.warn("Previous content and created for {}/{}", shardId.getIndexName(), index.id());
+            if(result.isCreated())
+            log.warn("Previous content and created for {}",index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+
             //assert !result.isCreated():"Previous content and created";
         }
 

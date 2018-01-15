@@ -6,11 +6,7 @@
   "session_data": "session data value",
   "manager": {
     "age": 77,
-    "name": "manager name value",
-    "inner": {
-      "a": 1,
-      "b": "b value"
-    }
+    "name": "manager name value"
   },
   "employees": [
     {
@@ -20,6 +16,11 @@
     {
       "age": 2,
       "name": "emp2 name value"
+    },
+    {
+      "age": 3,
+      "name": "emp3 name value"
     }
-  ]
+  ],
+  "city": "city value"
 }

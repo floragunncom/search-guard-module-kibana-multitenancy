@@ -40,7 +40,6 @@ import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.auditlog.AuditLog.Operation;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.google.common.collect.MapDifference;
 
 public final class AuditMessage {
 
@@ -89,9 +88,6 @@ public final class AuditMessage {
     //public static final String COMPLIANCE_PREVIOUS_CONTENT = "audit_compliance_previous_content";
     public static final String COMPLIANCE_DIFF_IS_NOOP = "audit_compliance_diff_is_noop";
     public static final String COMPLIANCE_DIFF_CONTENT = "audit_compliance_diff_content";
-    public static final String COMPLIANCE_NEW_CONTENT  = "audit_compliance_new_content";
-    public static final String COMPLIANCE_REMOVED_CONTENT = "audit_compliance_removed_content";
-
 
     public static final String REQUEST_LAYER = "audit_request_layer";
 
@@ -163,13 +159,11 @@ public final class AuditMessage {
         }
     }
 
-    public void addComplianceWriteDiff(MapDifference<String, Object> diff) {
-        if (diff != null && !diff.areEqual()) {
-            auditInfo.put(COMPLIANCE_DIFF_CONTENT, diff.entriesDiffering());
-            auditInfo.put(COMPLIANCE_REMOVED_CONTENT, diff.entriesOnlyOnLeft());
-            auditInfo.put(COMPLIANCE_NEW_CONTENT, diff.entriesOnlyOnRight());
+    public void addComplianceWriteDiff(String diff) {
+        if (diff != null && !diff.isEmpty()) {
+            auditInfo.put(COMPLIANCE_DIFF_CONTENT, diff);
             auditInfo.put(COMPLIANCE_DIFF_IS_NOOP, false);
-        } else if (diff != null && diff.areEqual()) {
+        } else if (diff != null && diff.isEmpty()) {
             auditInfo.put(COMPLIANCE_DIFF_IS_NOOP, true);
         }
     }

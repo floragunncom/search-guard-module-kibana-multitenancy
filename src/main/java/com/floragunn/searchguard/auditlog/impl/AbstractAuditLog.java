@@ -44,6 +44,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flipkart.zjsonpatch.JsonDiff;
@@ -396,7 +397,13 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addIndices(new String[]{index});
         msg.addResolvedIndices(new String[]{index});
         msg.addId(id);
-        msg.addSource(fieldNameValues);
+        if(fieldNameValues != null && !fieldNameValues.isEmpty()) {
+            try {
+                msg.addSource(mapper.writeValueAsString(fieldNameValues));
+            } catch (JsonProcessingException e) {
+                log.error("Unable to generate request body for {} and {}",msg.toPrettyString(),fieldNameValues, e);
+            }
+        }
         save(msg);
     }
 
@@ -422,7 +429,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 final JsonNode diffnode = JsonDiff.asJson(mapper.readTree(originalSource), mapper.readTree(currentSource));
                 msg.addComplianceWriteDiff(diffnode.size() == 0?"":diffnode.toString());
             } catch (IOException e) {
-                log.error("Unable to generate diff",e);
+                log.error("Unable to generate diff for {}",msg.toPrettyString(),e);
             }
 
         } else {

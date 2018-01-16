@@ -215,11 +215,11 @@ public final class AuditMessage {
         }
     }
 
-    public void addSource(Map<String, String> source) {
+    /*public void addSource(Map<String, String> source) {
         if (source != null && !source.isEmpty()) {
             auditInfo.put(REQUEST_BODY, source);
         }
-    }
+    }*/
 
     public void addIndices(String[] indices) {
         if (indices != null && indices.length > 0) {

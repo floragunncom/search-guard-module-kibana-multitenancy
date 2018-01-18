@@ -48,6 +48,7 @@ public class TracingTests extends SingleClusterTest {
 
         final Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "debug")
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_PII_FIELDS, "a")
                 .put("searchguard.audit.resolve_bulk_requests", true)
                 .put("searchguard.audit.config.log4j.logger_name", "sg_action_trace")
                 .put("searchguard.audit.config.log4j.level", "TRACE")
@@ -328,7 +329,9 @@ public class TracingTests extends SingleClusterTest {
 
     @Test
     public void testAdvancedMapping() throws Exception {
-        Settings settings = Settings.builder().put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "log4j").build();
+        Settings settings = Settings.builder()
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_PII_FIELDS, "*")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "debug").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (TransportClient tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {
@@ -352,7 +355,7 @@ public class TracingTests extends SingleClusterTest {
 
         System.out.println("############ write into mapping 2");
         System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("admin", "admin")));
-        System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("admin", "admin")));
+        System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data2, encodeBasicHeader("admin", "admin")));
 
         System.out.println("############ write into mapping 3");
         String parent = FileHelper.loadFile("auditlog/data2.json");

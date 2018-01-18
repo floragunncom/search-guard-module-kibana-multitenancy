@@ -15,6 +15,11 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +27,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.http.client.utils.URIBuilder;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -42,7 +48,6 @@ import com.floragunn.searchguard.auditlog.AuditLog.Operation;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 
 public final class AuditMessage {
-
 
     //clustername and cluster uuid
     private static final String AUTHORIZATION_HEADER = "Authorization";
@@ -88,6 +93,7 @@ public final class AuditMessage {
     //public static final String COMPLIANCE_PREVIOUS_CONTENT = "audit_compliance_previous_content";
     public static final String COMPLIANCE_DIFF_IS_NOOP = "audit_compliance_diff_is_noop";
     public static final String COMPLIANCE_DIFF_CONTENT = "audit_compliance_diff_content";
+    public static final String COMPLIANCE_FILE_INFOS = "audit_compliance_file_infos";
 
     public static final String REQUEST_LAYER = "audit_request_layer";
 
@@ -212,6 +218,28 @@ public final class AuditMessage {
     public void addSource(String source) {
         if (source != null) {
             auditInfo.put(REQUEST_BODY, source);
+        }
+    }
+
+    public void addFileInfos(Map<String, Path> paths) {
+        if (paths != null && !paths.isEmpty()) {
+            List<Object> infos = new ArrayList<>();
+            for(Entry<String, Path> path: paths.entrySet()) {
+                try {
+                    final String chcksm = DigestUtils.sha256Hex(Files.readAllBytes(path.getValue()));
+                    FileTime lm = Files.getLastModifiedTime(path.getValue(), LinkOption.NOFOLLOW_LINKS);
+                    Map<String, Object> innerInfos = new HashMap<>();
+                    innerInfos.put("key", path.getKey());
+                    innerInfos.put("path", path.getValue().toAbsolutePath().toString());
+                    innerInfos.put("sha256", chcksm);
+                    //innerInfos.put("last_modified", lm.toMillis());
+                    innerInfos.put("last_modified", formatTime(lm.toMillis()));
+                    infos.add(innerInfos);
+                } catch (IOException e) {
+                    infos.add(path.getValue().toAbsolutePath().toString()+": "+e.toString());
+                }
+            }
+            auditInfo.put(COMPLIANCE_FILE_INFOS, infos);
         }
     }
 
@@ -361,11 +389,17 @@ public final class AuditMessage {
         SSL_EXCEPTION,
         AUTHENTICATED,
         COMPLIANCE_DOC_READ,
-        COMPLIANCE_DOC_WRITE;
+        COMPLIANCE_DOC_WRITE,
+        COMPLIANCE_EXTERNAL_CONFIG;
     }
 
     private String currentTime() {
         DateTime dt = new DateTime(DateTimeZone.UTC);
+        return DEFAULT_FORMAT.print(dt);
+    }
+
+    private String formatTime(long epoch) {
+        DateTime dt = new DateTime(epoch, DateTimeZone.UTC);
         return DEFAULT_FORMAT.print(dt);
     }
 

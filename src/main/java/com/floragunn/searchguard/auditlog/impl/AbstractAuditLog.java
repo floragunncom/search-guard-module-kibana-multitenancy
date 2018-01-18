@@ -16,23 +16,31 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.Engine.Delete;
 import org.elasticsearch.index.engine.Engine.DeleteResult;
 import org.elasticsearch.index.engine.Engine.Index;
@@ -50,6 +58,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flipkart.zjsonpatch.JsonDiff;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
@@ -389,7 +398,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logDocumentRead(String index, String id, Map<String, String> fieldNameValues) {
+    public void logDocumentRead(String index, String id, Map<String, String> fieldNameValues, ComplianceConfig complianceConfig) {
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_DOC_READ, clusterService, getOrigin(), null);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
@@ -399,7 +408,11 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addId(id);
         if(fieldNameValues != null && !fieldNameValues.isEmpty()) {
             try {
-                msg.addSource(mapper.writeValueAsString(fieldNameValues));
+                if(complianceConfig.logMetadataOnly()) {
+                    msg.addSource(mapper.writeValueAsString(fieldNameValues.keySet()));
+                } else {
+                    msg.addSource(mapper.writeValueAsString(fieldNameValues));
+                }
             } catch (JsonProcessingException e) {
                 log.error("Unable to generate request body for {} and {}",msg.toPrettyString(),fieldNameValues, e);
             }
@@ -408,7 +421,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logDocumentWritten(ShardId shardId, GetResult originalIndex, Index currentIndex, IndexResult result) {
+    public void logDocumentWritten(ShardId shardId, GetResult originalIndex, GetResult currentGet, Index currentIndex, IndexResult result, ComplianceConfig complianceConfig) {
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_DOC_WRITE, clusterService, getOrigin(), null);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
@@ -421,19 +434,29 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addComplianceDocVersion(result.getVersion());
         msg.addComplianceOperation(result.isCreated()?Operation.CREATE:Operation.UPDATE);
 
-        if(originalIndex != null && originalIndex.isExists() && originalIndex.internalSourceRef() != null) {
-            //TODO store fields if _source is disabled
-            try {
-                final String originalSource = XContentHelper.convertToJson(originalIndex.internalSourceRef(), false, XContentType.JSON);
-                final String currentSource =  XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
-                final JsonNode diffnode = JsonDiff.asJson(mapper.readTree(originalSource), mapper.readTree(currentSource));
-                msg.addComplianceWriteDiff(diffnode.size() == 0?"":diffnode.toString());
-            } catch (IOException e) {
-                log.error("Unable to generate diff for {}",msg.toPrettyString(),e);
+        if(!complianceConfig.logMetadataOnly()) {
+
+            if(originalIndex != null) {
+                Map<String, DocumentField> storedFields = originalIndex.getFields();
+                System.out.println("stored fields in original: "+storedFields);
             }
 
-        } else {
-            msg.addBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+            System.out.println("stored fields in new doc: "+currentGet.getFields());
+
+
+            if(originalIndex != null && originalIndex.isExists() && originalIndex.internalSourceRef() != null) {
+                //TODO store fields if _source is disabled
+                try {
+                    final String originalSource = XContentHelper.convertToJson(originalIndex.internalSourceRef(), false, XContentType.JSON);
+                    final String currentSource =  XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
+                    final JsonNode diffnode = JsonDiff.asJson(mapper.readTree(originalSource), mapper.readTree(currentSource));
+                    msg.addComplianceWriteDiff(diffnode.size() == 0?"":diffnode.toString());
+                } catch (IOException e) {
+                    log.error("Unable to generate diff for {}",msg.toPrettyString(),e);
+                }
+            } else if (!complianceConfig.logDiffsOnly()){
+                msg.addBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+            }
         }
         save(msg);
     }
@@ -451,6 +474,31 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addShardId(shardId);
         msg.addComplianceDocVersion(result.getVersion());
         msg.addComplianceOperation(Operation.DELETE);
+        save(msg);
+    }
+
+    @Override
+    public void logExternalConfig(Settings settings, Environment environment) {
+        final String configAsString = Strings.toString(settings);
+        final String sha256 = DigestUtils.sha256Hex(configAsString);
+        AuditMessage msg = new AuditMessage(Category.COMPLIANCE_EXTERNAL_CONFIG, clusterService, null, null);
+        msg.addSource(configAsString+"  "+sha256);
+        Map<String, Path> paths = new HashMap<String, Path>();
+        for(String key: settings.keySet()) {
+            if(key.startsWith("searchguard") &&
+                    (key.contains("filepath") || key.contains("file_path"))) {
+                String value = settings.get(key);
+                if(value != null && !value.isEmpty()) {
+                    Path path = value.startsWith("/")?Paths.get(value):environment.configFile().resolve(value);
+                    if(Files.isReadable(path)) {
+                        paths.put(key, path);
+                    }
+                }
+            }
+        }
+        msg.addFileInfos(paths);
+
+
         save(msg);
     }
 

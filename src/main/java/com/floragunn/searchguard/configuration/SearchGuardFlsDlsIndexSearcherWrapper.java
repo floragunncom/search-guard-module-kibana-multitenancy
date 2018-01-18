@@ -45,18 +45,19 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
     private final NamedXContentRegistry namedXContentRegistry;
     private final ClusterService clusterService;
     private final IndexService indexService;
-    private final Settings settings;
+    private final ComplianceConfig complianceConfig;
     private final AuditLog auditlog;
 
     public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings,
-            final AdminDNs adminDNs, final ClusterService clusterService, final AuditLog auditlog, final ComplianceIndexingOperationListener ciol) {
+            final AdminDNs adminDNs, final ClusterService clusterService, final AuditLog auditlog,
+            final ComplianceIndexingOperationListener ciol, final ComplianceConfig complianceConfig) {
         super(indexService, settings, adminDNs);
         ciol.setIs(indexService);
         this.queryShardContext = indexService.newQueryShardContext(0, null, () -> 0L, null);
         this.namedXContentRegistry = indexService.xContentRegistry();
         this.clusterService = clusterService;
         this.indexService = indexService;
-        this.settings = settings;
+        this.complianceConfig = complianceConfig;
         this.auditlog = auditlog;
     }
 
@@ -89,7 +90,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
 
         return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields,
                 DlsQueryParser.parse(unparsedDlsQueries, queryShardContext, this.namedXContentRegistry),
-                indexService, threadContext, clusterService, new ComplianceConfig(settings), auditlog);
+                indexService, threadContext, clusterService, complianceConfig, auditlog);
     }
 
 

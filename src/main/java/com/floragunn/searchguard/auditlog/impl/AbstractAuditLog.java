@@ -16,7 +16,6 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -494,9 +493,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 String value = settings.get(key);
                 if(value != null && !value.isEmpty()) {
                     Path path = value.startsWith("/")?Paths.get(value):environment.configFile().resolve(value);
-                    if(Files.isReadable(path)) {
-                        paths.put(key, path);
-                    }
+                    paths.put(key, path);
                 }
             }
         }

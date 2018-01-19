@@ -331,7 +331,7 @@ public class TracingTests extends SingleClusterTest {
     public void testAdvancedMapping() throws Exception {
         Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_PII_FIELDS, "*")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "debug").build();
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "internal_elasticsearch").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (TransportClient tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {

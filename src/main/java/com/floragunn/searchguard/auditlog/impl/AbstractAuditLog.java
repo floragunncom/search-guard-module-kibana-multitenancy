@@ -63,6 +63,8 @@ import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
+import com.google.common.collect.MapDifference;
+import com.google.common.collect.Maps;
 
 public abstract class AbstractAuditLog implements AuditLog {
 
@@ -436,21 +438,23 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         if(!complianceConfig.logMetadataOnly()) {
 
-            if(originalIndex != null) {
-                Map<String, DocumentField> storedFields = originalIndex.getFields();
-                System.out.println("stored fields in original: "+storedFields);
-            }
+            final Map<String, DocumentField> currentFields = currentGet.getFields();
 
-            System.out.println("stored fields in new doc: "+currentGet.getFields());
+            if(originalIndex != null) {
+                final Map<String, DocumentField> originalFields = originalIndex.getFields();
+                MapDifference<String, Object> mapDiff = Maps.difference(currentFields, originalFields);
+                msg.addComplianceWriteStoredFields(mapDiff.areEqual()?"":mapDiff.toString());
+            } else if (!complianceConfig.logDiffsOnly() && currentGet.getFields().size() > 0) {
+                msg.addComplianceWriteStoredFields(currentGet.getFields().toString());
+            }
 
 
             if(originalIndex != null && originalIndex.isExists() && originalIndex.internalSourceRef() != null) {
-                //TODO store fields if _source is disabled
                 try {
                     final String originalSource = XContentHelper.convertToJson(originalIndex.internalSourceRef(), false, XContentType.JSON);
                     final String currentSource =  XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
                     final JsonNode diffnode = JsonDiff.asJson(mapper.readTree(originalSource), mapper.readTree(currentSource));
-                    msg.addComplianceWriteDiff(diffnode.size() == 0?"":diffnode.toString());
+                    msg.addComplianceWriteDiffSource(diffnode.size() == 0?"":diffnode.toString());
                 } catch (IOException e) {
                     log.error("Unable to generate diff for {}",msg.toPrettyString(),e);
                 }

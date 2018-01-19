@@ -36,7 +36,6 @@ import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 
-//TODO stored fields
 public final class ComplianceIndexingOperationListenerImpl extends ComplianceIndexingOperationListener {
 
     private static final Logger log = LogManager.getLogger(ComplianceIndexingOperationListenerImpl.class);
@@ -87,8 +86,6 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
         }
     }
 
-    //private final Map<String, GetResult> seq = new HashMap<>();
-
     @Override
     public Index preIndex(ShardId shardId, Index index) {
         Objects.requireNonNull(is);
@@ -132,7 +129,6 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
 
                 if (getResult.isExists()) {
                     threadContext.set(new Context(getResult, storedFieldsA));
-                    //seq.put(index.startTime() + "/" + shardId + "/" + index.type() + "/" + index.id(), getResult);
                 } else {
                     threadContext.set(new Context(null, storedFieldsA));
                 }
@@ -154,7 +150,6 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
     @Override
     public void postIndex(ShardId shardId, Index index, Exception ex) {
         threadContext.remove();
-        //seq.remove(index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
     }
 
     @Override
@@ -175,7 +170,7 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
         }
 
         final GetResult getResult = shard.getService().get(index.type(), index.id(),
-                storedFieldsA, true, index.version(), index.versionType(),
+                storedFieldsA, true, result.getVersion(), index.versionType(),
                 FetchSourceContext.DO_NOT_FETCH_SOURCE);
 
         if(previousContent == null) {

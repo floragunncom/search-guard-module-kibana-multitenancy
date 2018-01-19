@@ -90,10 +90,12 @@ public final class AuditMessage {
     public static final String TASK_PARENT_ID = "audit_trace_task_parent_id";
 
     public static final String REQUEST_BODY = "audit_request_body";
-    //public static final String COMPLIANCE_PREVIOUS_CONTENT = "audit_compliance_previous_content";
     public static final String COMPLIANCE_DIFF_IS_NOOP = "audit_compliance_diff_is_noop";
     public static final String COMPLIANCE_DIFF_CONTENT = "audit_compliance_diff_content";
     public static final String COMPLIANCE_FILE_INFOS = "audit_compliance_file_infos";
+
+    //public static final String COMPLIANCE_DIFF_STORED_IS_NOOP = "audit_compliance_diff_stored_is_noop";
+    public static final String COMPLIANCE_STORED_FIELDS_CONTENT = "audit_compliance_stored_fields_content";
 
     public static final String REQUEST_LAYER = "audit_request_layer";
 
@@ -165,12 +167,19 @@ public final class AuditMessage {
         }
     }
 
-    public void addComplianceWriteDiff(String diff) {
+    public void addComplianceWriteDiffSource(String diff) {
         if (diff != null && !diff.isEmpty()) {
             auditInfo.put(COMPLIANCE_DIFF_CONTENT, diff);
             auditInfo.put(COMPLIANCE_DIFF_IS_NOOP, false);
         } else if (diff != null && diff.isEmpty()) {
             auditInfo.put(COMPLIANCE_DIFF_IS_NOOP, true);
+        }
+    }
+
+    public void addComplianceWriteStoredFields(String diff) {
+        if (diff != null && !diff.isEmpty()) {
+            auditInfo.put(COMPLIANCE_STORED_FIELDS_CONTENT, diff);
+            //auditInfo.put(COMPLIANCE_DIFF_STORED_IS_NOOP, false);
         }
     }
 

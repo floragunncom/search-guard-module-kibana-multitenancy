@@ -14,13 +14,9 @@
 
 package com.floragunn.searchguard.configuration;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -46,7 +42,6 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.support.replication.ReplicationRequest;
 import org.elasticsearch.action.support.single.shard.SingleShardRequest;
@@ -65,7 +60,6 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.configuration.PrivilegesEvaluator.IndexType;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.google.common.cache.Cache;
@@ -74,7 +68,7 @@ import com.google.common.cache.CacheBuilder;
 public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
     private static final String KIBANA_6_TYPE = "doc";
-    private final static IndicesOptions DEFAULT_INDICES_OPTIONS = IndicesOptions.lenientExpandOpen();
+    //private final static IndicesOptions DEFAULT_INDICES_OPTIONS = IndicesOptions.lenientExpandOpen();
     private static final String USER_TENANT = "__user__";
 
     private static final String EMPTY_STRING = "";
@@ -697,7 +691,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         }
     }
 
-    @Override
+    /*@Override
     public boolean replaceAllowedIndices(final ActionRequest request, final String action, final User user, final Settings config,
             final Map<String, Set<PrivilegesEvaluator.IndexType>> leftOvers) {
 
@@ -889,7 +883,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
         return survivors.toArray(new String[0]);
     }
-
+*/
 
     private String toUserIndexName(final String originalKibanaIndex, final String tenant) {
         

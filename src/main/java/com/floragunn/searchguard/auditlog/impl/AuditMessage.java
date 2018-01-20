@@ -234,29 +234,20 @@ public final class AuditMessage {
         if (paths != null && !paths.isEmpty()) {
             List<Object> infos = new ArrayList<>();
             for(Entry<String, Path> path: paths.entrySet()) {
+
                 try {
-
-                    Map<String, Object> innerInfos = new HashMap<>();
-                    innerInfos.put("sha256", "n/a");
-                    innerInfos.put("last_modified", "n/a");
-
-                    try {
-                        if(Files.isReadable(path.getValue())) {
-                            final String chcksm = DigestUtils.sha256Hex(Files.readAllBytes(path.getValue()));
-                            FileTime lm = Files.getLastModifiedTime(path.getValue(), LinkOption.NOFOLLOW_LINKS);
-                            innerInfos.put("sha256", chcksm);
-                            innerInfos.put("last_modified", formatTime(lm.toMillis()));
-                        }
-                    } catch (Throwable e) {
-                        //ignore
+                    if(Files.isReadable(path.getValue())) {
+                        final String chcksm = DigestUtils.sha256Hex(Files.readAllBytes(path.getValue()));
+                        FileTime lm = Files.getLastModifiedTime(path.getValue(), LinkOption.NOFOLLOW_LINKS);
+                        Map<String, Object> innerInfos = new HashMap<>();
+                        innerInfos.put("sha256", chcksm);
+                        innerInfos.put("last_modified", formatTime(lm.toMillis()));
+                        innerInfos.put("key", path.getKey());
+                        innerInfos.put("path", path.getValue().toAbsolutePath().toString());
+                        infos.add(innerInfos);
                     }
-
-                    innerInfos.put("key", path.getKey());
-                    innerInfos.put("path", path.getValue().toAbsolutePath().toString());
-
-                    infos.add(innerInfos);
-                } catch (Exception e) {
-                    infos.add(path.getValue().toAbsolutePath().toString()+": "+e.toString());
+                } catch (Throwable e) {
+                    //ignore non readable files
                 }
             }
             auditInfo.put(COMPLIANCE_FILE_INFOS, infos);

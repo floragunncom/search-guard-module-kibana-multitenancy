@@ -79,7 +79,9 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected final boolean logRequestBody;
     protected final boolean resolveIndices;
 
-    private List<String> ignoreAuditUsers;
+    private List<String> ignoredAuditUsers;
+    private List<String> ignoredComplianceUsersForRead;
+    private List<String> ignoredComplianceUsersForWrite;
     private final List<String> ignoreAuditRequests;
     private final List<String> disabledRestCategories;
     private final List<String> disabledTransportCategories;
@@ -131,18 +133,40 @@ public abstract class AbstractAuditLog implements AuditLog {
         logRequestBody = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_LOG_REQUEST_BODY, true);
         resolveIndices = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_INDICES, true);
 
-        ignoreAuditUsers = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, defaultIgnoredUsers));
+        ignoredAuditUsers = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, defaultIgnoredUsers));
 
-        if(ignoreAuditUsers.size() == 1 && "NONE".equals(ignoreAuditUsers.get(0))) {
-            ignoreAuditUsers.clear();
+        if(ignoredAuditUsers.size() == 1 && "NONE".equals(ignoredAuditUsers.get(0))) {
+            ignoredAuditUsers.clear();
         }
 
-        if (ignoreAuditUsers.size() > 0) {
-            log.info("Configured Users to ignore: {}", ignoreAuditUsers);
+        if (ignoredAuditUsers.size() > 0) {
+            log.info("Configured Users to ignore: {}", ignoredAuditUsers);
         }
+
+        ignoredComplianceUsersForRead = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_IGNORE_USERS, defaultIgnoredUsers));
+
+        if(ignoredComplianceUsersForRead.size() == 1 && "NONE".equals(ignoredComplianceUsersForRead.get(0))) {
+            ignoredComplianceUsersForRead.clear();
+        }
+
+        if (ignoredComplianceUsersForRead.size() > 0) {
+            log.info("Configured Users to ignore for read compliance events: {}", ignoredComplianceUsersForRead);
+        }
+
+        ignoredComplianceUsersForWrite = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_IGNORE_USERS, defaultIgnoredUsers));
+
+        if(ignoredComplianceUsersForWrite.size() == 1 && "NONE".equals(ignoredComplianceUsersForWrite.get(0))) {
+            ignoredComplianceUsersForWrite.clear();
+        }
+
+        if (ignoredComplianceUsersForWrite.size() > 0) {
+            log.info("Configured Users to ignore for write compliance events: {}", ignoredComplianceUsersForWrite);
+        }
+
+
 
         ignoreAuditRequests = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUESTS, Collections.emptyList());
-        if (ignoreAuditUsers.size() > 0) {
+        if (ignoreAuditRequests.size() > 0) {
             log.info("Configured Requests to ignore: {}", ignoreAuditRequests);
         }
 
@@ -400,14 +424,22 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     @Override
     public void logDocumentRead(String index, String id, Map<String, String> fieldNameValues, ComplianceConfig complianceConfig) {
-        AuditMessage msg = new AuditMessage(Category.COMPLIANCE_DOC_READ, clusterService, getOrigin(), null);
-        TransportAddress remoteAddress = getRemoteAddress();
-        msg.addRemoteAddress(remoteAddress);
-        msg.addEffectiveUser(getUser());
-        msg.addIndices(new String[]{index});
-        msg.addResolvedIndices(new String[]{index});
-        msg.addId(id);
+
+        String effectiveUser = getUser();
+
+        if(!checkComplianceFilter(Category.COMPLIANCE_DOC_READ, effectiveUser)) {
+            return;
+        }
+
         if(fieldNameValues != null && !fieldNameValues.isEmpty()) {
+            AuditMessage msg = new AuditMessage(Category.COMPLIANCE_DOC_READ, clusterService, getOrigin(), null);
+            TransportAddress remoteAddress = getRemoteAddress();
+            msg.addRemoteAddress(remoteAddress);
+            msg.addEffectiveUser(effectiveUser);
+            msg.addIndices(new String[]{index});
+            msg.addResolvedIndices(new String[]{index});
+            msg.addId(id);
+
             try {
                 if(complianceConfig.logMetadataOnly()) {
                     msg.addSource(mapper.writeValueAsString(fieldNameValues.keySet()));
@@ -417,16 +449,25 @@ public abstract class AbstractAuditLog implements AuditLog {
             } catch (JsonProcessingException e) {
                 log.error("Unable to generate request body for {} and {}",msg.toPrettyString(),fieldNameValues, e);
             }
+
+            save(msg);
         }
-        save(msg);
+
     }
 
     @Override
     public void logDocumentWritten(ShardId shardId, GetResult originalIndex, GetResult currentGet, Index currentIndex, IndexResult result, ComplianceConfig complianceConfig) {
+
+        String effectiveUser = getUser();
+
+        if(!checkComplianceFilter(Category.COMPLIANCE_DOC_WRITE, effectiveUser)) {
+            return;
+        }
+
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_DOC_WRITE, clusterService, getOrigin(), null);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        msg.addEffectiveUser(getUser());
+        msg.addEffectiveUser(effectiveUser);
         msg.addIndices(new String[]{shardId.getIndexName()});
         msg.addResolvedIndices(new String[]{shardId.getIndexName()});
         msg.addId(currentIndex.id());
@@ -443,7 +484,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 final Map<String, DocumentField> originalFields = originalIndex.getFields();
                 MapDifference<String, Object> mapDiff = Maps.difference(currentFields, originalFields);
                 msg.addComplianceWriteStoredFields(mapDiff.areEqual()?"":mapDiff.toString());
-            } else if (!complianceConfig.logDiffsOnly() && currentGet.getFields().size() > 0) {
+            } else if (!complianceConfig.logDiffsOnlyForWrite() && currentGet.getFields().size() > 0) {
                 msg.addComplianceWriteStoredFields(currentGet.getFields().toString());
             }
 
@@ -457,7 +498,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 } catch (IOException e) {
                     log.error("Unable to generate diff for {}",msg.toPrettyString(),e);
                 }
-            } else if (!complianceConfig.logDiffsOnly()){
+            } else if (!complianceConfig.logDiffsOnlyForWrite()){
                 msg.addBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
             }
         }
@@ -466,10 +507,17 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     @Override
     public void logDocumentDeleted(ShardId shardId, Delete delete, DeleteResult result) {
+
+        String effectiveUser = getUser();
+
+        if(!checkComplianceFilter(Category.COMPLIANCE_DOC_WRITE, effectiveUser)) {
+            return;
+        }
+
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_DOC_WRITE, clusterService, getOrigin(), null);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        msg.addEffectiveUser(getUser());
+        msg.addEffectiveUser(effectiveUser);
         msg.addIndices(new String[]{shardId.getIndexName()});
         msg.addResolvedIndices(new String[]{shardId.getIndexName()});
         msg.addId(delete.id());
@@ -482,6 +530,11 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     @Override
     public void logExternalConfig(Settings settings, Environment environment) {
+
+        if(!checkComplianceFilter(Category.COMPLIANCE_EXTERNAL_CONFIG, null)) {
+            return;
+        }
+
         final String configAsString = Strings.toString(settings);
         final String sha256 = DigestUtils.sha256Hex(configAsString);
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_EXTERNAL_CONFIG, clusterService, null, null);
@@ -568,7 +621,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
 
-        if (ignoreAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
+        if (ignoredAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoredAuditUsers, effectiveUser)) {
 
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
@@ -605,8 +658,40 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     }
 
-    private boolean checkRestFilter(final Category category, final String effectiveUser, RestRequest request) {
+    private boolean checkComplianceFilter(final Category category, final String effectiveUser) {
+        if(log.isTraceEnabled()) {
+            log.trace("Check for REST category:{}, effectiveUser:{}", category, effectiveUser);
+        }
 
+        if(category == Category.COMPLIANCE_DOC_READ) {
+            if (ignoredComplianceUsersForRead.size() > 0 && effectiveUser != null
+                    && WildcardMatcher.matchAny(ignoredComplianceUsersForRead, effectiveUser)) {
+
+                if(log.isTraceEnabled()) {
+                    log.trace("Skipped compliance log message because of user {} is ignored", effectiveUser);
+                }
+
+                return false;
+            }
+        }
+
+        if(category == Category.COMPLIANCE_DOC_WRITE) {
+            if (ignoredComplianceUsersForWrite.size() > 0 && effectiveUser != null
+                    && WildcardMatcher.matchAny(ignoredComplianceUsersForWrite, effectiveUser)) {
+
+                if(log.isTraceEnabled()) {
+                    log.trace("Skipped compliance log message because of user {} is ignored", effectiveUser);
+                }
+
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+
+    private boolean checkRestFilter(final Category category, final String effectiveUser, RestRequest request) {
         if(log.isTraceEnabled()) {
             log.trace("Check for REST category:{}, effectiveUser:{}, request:{}", category, effectiveUser, request==null?null:request.path());
         }
@@ -622,7 +707,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         }
 
-        if (ignoreAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
+        if (ignoredAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoredAuditUsers, effectiveUser)) {
 
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
@@ -656,6 +741,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         //check action
         //check ignoreAuditUsers
     }
+
 
     protected abstract void save(final AuditMessage msg);
 }

@@ -125,7 +125,7 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
 
                 final GetResult getResult = shard.getService().get(index.type(), index.id(),
                         storedFieldsA, true, index.version(), index.versionType(),
-                        FetchSourceContext.DO_NOT_FETCH_SOURCE);
+                        FetchSourceContext.FETCH_SOURCE);
 
                 if (getResult.isExists()) {
                     threadContext.set(new Context(getResult, storedFieldsA));
@@ -171,7 +171,7 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
 
         final GetResult getResult = shard.getService().get(index.type(), index.id(),
                 storedFieldsA, true, result.getVersion(), index.versionType(),
-                FetchSourceContext.DO_NOT_FETCH_SOURCE);
+                FetchSourceContext.FETCH_SOURCE);
 
         if(previousContent == null) {
             //no previous content

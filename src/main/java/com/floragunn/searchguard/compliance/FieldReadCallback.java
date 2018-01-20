@@ -60,7 +60,7 @@ public final class FieldReadCallback {
     }
 
     private boolean recordField(final String fieldName) {
-        return complianceConfig.enabledForField(index.getName(), fieldName);
+        return complianceConfig.readHistoryEnabledForField(index.getName(), fieldName);
     }
 
     public void binaryFieldRead(final FieldInfo fieldInfo, final byte[] fieldValue) {
@@ -73,7 +73,7 @@ public final class FieldReadCallback {
                 Map<String, Object> filteredSource = new JsonFlattener(new String(fieldValue, StandardCharsets.UTF_8)).flattenAsMap();
                 for(String k: filteredSource.keySet()) {
                     if(!recordField(k)) {
-                        return;
+                        continue;
                     }
                     fieldRead0(k, filteredSource.get(k));
                 }

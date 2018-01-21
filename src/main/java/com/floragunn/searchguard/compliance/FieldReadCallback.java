@@ -20,17 +20,27 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.FieldInfo;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.Uid;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.support.HeaderHelper;
+import com.floragunn.searchguard.support.SourceFieldsContext;
 import com.github.wnameless.json.flattener.JsonFlattener;
 
 //TODO  We need to deal with caching!!
@@ -42,34 +52,70 @@ import com.github.wnameless.json.flattener.JsonFlattener;
 public final class FieldReadCallback {
 
     private static final Logger log = LogManager.getLogger(FieldReadCallback.class);
-    private final ThreadContext threadContext;
-    private final ClusterService clusterService;
+    //private final ThreadContext threadContext;
+    //private final ClusterService clusterService;
     private final Index index;
     private final ComplianceConfig complianceConfig;
     private final AuditLog auditLog;
+    private Function<Map<String, ?>, Map<String, Object>> filterFunction;
+    private SourceFieldsContext sfc;
     private Doc doc;
 
     public FieldReadCallback(final ThreadContext threadContext, final IndexService indexService,
             final ClusterService clusterService, final ComplianceConfig complianceConfig, final AuditLog auditLog) {
         super();
-        this.threadContext = Objects.requireNonNull(threadContext);
-        this.clusterService = Objects.requireNonNull(clusterService);
+        //this.threadContext = Objects.requireNonNull(threadContext);
+        //this.clusterService = Objects.requireNonNull(clusterService);
         this.index = Objects.requireNonNull(indexService).index();
         this.complianceConfig = complianceConfig;
         this.auditLog = auditLog;
+        try {
+            sfc = (SourceFieldsContext) HeaderHelper.deserializeSafeFromHeader(threadContext, "_sg_source_field_context");
+            if(sfc != null && sfc.getIncludes() != null && sfc.getExcludes() != null) {
+                if(log.isTraceEnabled()) {
+                    log.trace("_sg_source_field_context: "+sfc);
+                }
+
+                filterFunction = XContentMapValues.filter(sfc.getIncludes(), sfc.getExcludes());
+            }
+        } catch (Exception e) {
+            if(log.isDebugEnabled()) {
+                log.debug("Cannot deserialize _sg_source_field_context because of {}", e.toString());
+            }
+        }
     }
 
     private boolean recordField(final String fieldName) {
         return complianceConfig.readHistoryEnabledForField(index.getName(), fieldName);
     }
 
-    public void binaryFieldRead(final FieldInfo fieldInfo, final byte[] fieldValue) {
+    public void binaryFieldRead(final FieldInfo fieldInfo, byte[] fieldValue) {
         try {
             if(!recordField(fieldInfo.name) && !fieldInfo.name.equals("_source") && !fieldInfo.name.equals("_id")) {
                 return;
             }
 
             if(fieldInfo.name.equals("_source")) {
+
+                if(filterFunction != null) {
+                    final BytesReference bytesRef = new BytesArray(fieldValue);
+                    final Tuple<XContentType, Map<String, Object>> bytesRefTuple = XContentHelper.convertToMap(bytesRef, false, XContentType.JSON);
+                    Map<String, Object> filteredSource = bytesRefTuple.v2();
+
+                    //if (!canOptimize) {
+                        filteredSource = filterFunction.apply(bytesRefTuple.v2());
+                    /*} else {
+                        if (!excludesSet.isEmpty()) {
+                            filteredSource.keySet().removeAll(excludesSet);
+                        } else {
+                            filteredSource.keySet().retainAll(includesSet);
+                        }
+                    }*/
+
+                    final XContentBuilder xBuilder = XContentBuilder.builder(bytesRefTuple.v1().xContent()).map(filteredSource);
+                    fieldValue = BytesReference.toBytes(xBuilder.bytes());
+                }
+
                 Map<String, Object> filteredSource = new JsonFlattener(new String(fieldValue, StandardCharsets.UTF_8)).flattenAsMap();
                 for(String k: filteredSource.keySet()) {
                     if(!recordField(k)) {

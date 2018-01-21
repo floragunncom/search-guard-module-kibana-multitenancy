@@ -333,7 +333,7 @@ public class TracingTests extends SingleClusterTest {
         Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, "*")
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_WATCHED_INDICES, "*")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "log4j").build();
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "debug").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (TransportClient tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {
@@ -369,6 +369,13 @@ public class TracingTests extends SingleClusterTest {
         System.out.println("############ write into mapping 4");
         System.out.println(rh.executePutRequest("myindex4/mytype4/1?refresh", parent, encodeBasicHeader("admin", "admin")));
         System.out.println(rh.executePutRequest("myindex4/mytype4/2?routing=1&refresh", child, encodeBasicHeader("admin", "admin")));
+
+        System.out.println("############ get");
+        System.out.println(rh.executeGetRequest("myindex1/mytype1/1?pretty=true&_source=true&_source_include=*.id&_source_exclude=entities&stored_fields=tags,counter", encodeBasicHeader("admin", "admin")).getBody());
+
+        System.out.println("############ search");
+        System.out.println(rh.executeGetRequest("myindex1/_search", encodeBasicHeader("admin", "admin")).getStatusCode());
+
     }
 
 }

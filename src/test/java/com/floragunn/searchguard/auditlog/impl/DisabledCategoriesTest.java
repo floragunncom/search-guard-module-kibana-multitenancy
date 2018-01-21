@@ -18,6 +18,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -70,7 +71,7 @@ public class DisabledCategoriesTest {
 		auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
 
 		String result = TestAuditlogImpl.sb.toString();
-		Assert.assertTrue(categoriesPresentInLog(result, Category.values()));
+		Assert.assertTrue(categoriesPresentInLog(result, filterComplianceCategories(Category.values())));
 
 	}
 
@@ -106,7 +107,7 @@ public class DisabledCategoriesTest {
 
 		String result = TestAuditlogImpl.sb.toString();
 
-		Assert.assertTrue(Category.values()+"#"+result, categoriesPresentInLog(result, Category.values()));
+		Assert.assertTrue(Category.values()+"#"+result, categoriesPresentInLog(result, filterComplianceCategories(Category.values())));
 
 		Assert.assertThat(result, containsString("testuser.transport.succeededlogin"));
 		Assert.assertThat(result, containsString("testuser.rest.succeededlogin"));
@@ -171,7 +172,7 @@ public class DisabledCategoriesTest {
 
 		System.out.println(result+"###"+disabledCategoriesString);
 		Assert.assertFalse(categoriesPresentInLog(result, disabledCategories));
-		Assert.assertTrue(categoriesPresentInLog(result, allButDisablesCategories.toArray(new Category[] {})));
+		Assert.assertTrue(categoriesPresentInLog(result, filterComplianceCategories(allButDisablesCategories.toArray(new Category[] {}))));
 	}
 
 	protected boolean categoriesPresentInLog(String result, Category ... categories) {
@@ -247,6 +248,16 @@ public class DisabledCategoriesTest {
 
     protected void logAuthenticatedRequest(AuditLog auditLog) {
     	auditLog.logGrantedPrivileges("action.success", new TransportRequest.Empty(), null);
+    }
+
+    private static final Category[] filterComplianceCategories(Category[] cats) {
+        List<Category> retval = new ArrayList<AuditMessage.Category>();
+        for(Category c: cats) {
+            if(!c.toString().startsWith("COMPLIANCE")) {
+                retval.add(c);
+            }
+        }
+        return retval.toArray(new Category[0]);
     }
 
 }

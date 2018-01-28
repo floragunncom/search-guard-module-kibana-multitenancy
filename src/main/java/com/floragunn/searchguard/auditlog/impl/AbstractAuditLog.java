@@ -536,9 +536,11 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         final String configAsString = Strings.toString(settings);
-        final String sha256 = DigestUtils.sha256Hex(configAsString);
+        final String envAsString = String.valueOf(System.getenv());
+        final String propsAsString = String.valueOf(System.getProperties());
+        final String sha256 = DigestUtils.sha256Hex(configAsString+envAsString+propsAsString);
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_EXTERNAL_CONFIG, clusterService, null, null);
-        msg.addSource(configAsString+"  "+sha256);
+        msg.addSource(configAsString+"  "+envAsString+"  "+propsAsString+"  "+sha256);
         Map<String, Path> paths = new HashMap<String, Path>();
         for(String key: settings.keySet()) {
             if(key.startsWith("searchguard") &&

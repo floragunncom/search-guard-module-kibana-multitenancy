@@ -377,5 +377,47 @@ public class TracingTests extends SingleClusterTest {
         System.out.println(rh.executeGetRequest("myindex1/_search", encodeBasicHeader("admin", "admin")).getStatusCode());
 
     }
+    
+    @Test
+    public void testImmutableIndex() throws Exception {
+        Settings settings = Settings.builder()
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, "myindex1")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "debug").build();
+        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
+
+        try (TransportClient tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {
+            tc.admin().indices().create(new CreateIndexRequest("myindex1")
+            .mapping("mytype1", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            tc.admin().indices().create(new CreateIndexRequest("myindex2")
+            .mapping("mytype2", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+        }
+
+        RestHelper rh = nonSslRestHelper();
+        System.out.println("############ immutable 1");
+        String data1 = FileHelper.loadFile("auditlog/data1.json");
+        String data2 = FileHelper.loadFile("auditlog/data1mod.json");
+        HttpResponse res = rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(201, res.getStatusCode());
+        res = rh.executePutRequest("myindex1/mytype1/1?refresh", data2, encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(409, res.getStatusCode());
+        res = rh.executeDeleteRequest("myindex1/mytype1/1?refresh", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(403, res.getStatusCode());
+        res = rh.executeGetRequest("myindex1/mytype1/1", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(200, res.getStatusCode());
+        Assert.assertFalse(res.getBody().contains("city"));
+        Assert.assertTrue(res.getBody().contains("\"found\":true,"));
+        
+        System.out.println("############ immutable 2");
+        res = rh.executePutRequest("myindex2/mytype2/1?refresh", data1, encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(201, res.getStatusCode());
+        res = rh.executePutRequest("myindex2/mytype2/1?refresh", data2, encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(200, res.getStatusCode());
+        res = rh.executeGetRequest("myindex2/mytype2/1", encodeBasicHeader("admin", "admin"));
+        Assert.assertTrue(res.getBody().contains("city"));
+        res = rh.executeDeleteRequest("myindex2/mytype2/1?refresh", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(200, res.getStatusCode());
+        res = rh.executeGetRequest("myindex2/mytype2/1", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(404, res.getStatusCode());
+    }
 
 }

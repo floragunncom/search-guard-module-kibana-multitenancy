@@ -311,8 +311,16 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
 
         config.setUseSSL(enableSSL);
         config.setUseStartTLS(enableStartTLS);
-        config.setConnectTimeout(5000L); // 5 sec
         
+        final long connectTimeout = settings.getAsLong(ConfigConstants.LDAP_CONNECT_TIMEOUT, 5000L);
+        final long responseTimeout = settings.getAsLong(ConfigConstants.LDAP_RESPONSE_TIMEOUT, -1L);
+        
+        config.setConnectTimeout(connectTimeout); // 5 sec by default
+        config.setResponseTimeout(responseTimeout);
+
+        if(log.isDebugEnabled()) {
+            log.debug("Connect timeout: "+config.getConnectTimeout()+"/ResponseTimeout: "+config.getResponseTimeout());
+        }
         return props;
         
     }

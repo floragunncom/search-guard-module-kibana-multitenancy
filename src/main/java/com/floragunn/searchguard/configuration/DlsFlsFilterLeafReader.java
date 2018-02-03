@@ -175,7 +175,17 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
                 if (preverveScorer != null) {
                   bits.or(preverveScorer.iterator());
                 }
-                
+
+                for(int i=0; i<in.numDocs(); i++) {
+                    try {
+                        if(in.document(i).getFields().isEmpty()) {
+                            bits.set(i);
+                        }
+                    } catch (Exception e) {
+                        //ignore
+                    }
+                }
+
                 if (in.hasDeletions()) {
                     final Bits oldLiveDocs = in.getLiveDocs();
                     assert oldLiveDocs != null;

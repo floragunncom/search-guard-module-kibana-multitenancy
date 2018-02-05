@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -374,21 +375,16 @@ public final class RequestResolver {
     }
     
     private static String sourceToString(BytesReference source) {
-        
-        if(source == null) {
+
+        if (source == null) {
             return "";
         }
-         try {
-            return XContentHelper.convertToJson(source, false, XContentType.SMILE);
+
+        try {
+            return source.utf8ToString();
         } catch (Exception e) {
-            try {
-                return XContentHelper.convertToJson(source, false, XContentType.JSON);
-            } catch (Exception e1) {
-                return e1.toString();
-            }
+            return new String(BytesReference.toBytes(source), StandardCharsets.UTF_8);
         }
-        
-        
     }
     
     private static String[] arrayOrEmpty(String[] array) {

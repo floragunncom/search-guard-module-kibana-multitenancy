@@ -207,7 +207,7 @@ public class DisabledCategoriesTest {
 	 }
 	 
 	 protected void logTransportSucceededLogin(AuditLog auditLog) {
-	     auditLog.logSucceededLogin("testuser.transport.succeededlogin", false, "testuser.transport.succeededlogin", new TransportRequest.Empty(), "test/action", new Task(0, "x", "ac", "", null));
+	     auditLog.logSucceededLogin("testuser.transport.succeededlogin", false, "testuser.transport.succeededlogin", new TransportRequest.Empty(), "test/action", new Task(0, "x", "ac", "", null, null));
 	 }
 	
 	

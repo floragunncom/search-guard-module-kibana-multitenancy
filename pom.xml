@@ -26,7 +26,16 @@
 
   <properties>
     <sg2.version>6.1-21.0-api-SNAPSHOT</sg2.version>
-    <elasticsearch.version>6.1.1</elasticsearch.version>
+    <elasticsearch.version>6.2.0</elasticsearch.version>
+    
+    <!-- deps -->
+    <log4j.version>2.9.1</log4j.version>
+    <jjwt.version>0.9.0</jjwt.version>
+    <ldaptive.version>1.1.0-fg-fork1</ldaptive.version>
+    <jackson-databind.version>2.8.11</jackson-databind.version>
+    
+    <!-- Test only -->
+    <mockito.version>1.10.19</mockito.version>
     <apache.ds.version>2.0.0-M21</apache.ds.version>
   </properties>
 
@@ -55,14 +64,14 @@
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
-      <version>2.9.1</version>
+      <version>${log4j.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
-      <version>2.9.1</version>
+      <version>${log4j.version}</version>
       <exclusions>
         <exclusion>
           <groupId>org.apache.logging.log4j</groupId>
@@ -81,7 +90,7 @@
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>ldaptive</artifactId>
-      <version>1.1.0-fg-fork1</version>
+      <version>${ldaptive.version}</version>
       <exclusions>
         <exclusion>
           <artifactId>commons-cli</artifactId>
@@ -114,7 +123,7 @@
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt</artifactId>
-      <version>0.9.0</version>
+      <version>${jjwt.version}</version>
       <exclusions>
         <exclusion>
           <artifactId>jackson-databind</artifactId>
@@ -126,7 +135,7 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <version>2.8.6</version>
+      <version>${jackson-databind.version}</version>
       <exclusions>
         <exclusion>
           <artifactId>jackson-core</artifactId>
@@ -170,12 +179,12 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
+    <!-- <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-log4j12</artifactId>
       <version>1.7.7</version>
       <scope>test</scope>
-    </dependency>
+    </dependency>  -->
 
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
@@ -215,7 +224,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>
-      <version>1.10.19</version>
+      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

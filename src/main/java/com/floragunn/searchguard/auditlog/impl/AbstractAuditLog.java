@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
@@ -61,6 +64,7 @@ import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
+import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
@@ -536,8 +540,27 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         final String configAsString = Strings.toString(settings);
-        final String envAsString = String.valueOf(System.getenv());
-        final String propsAsString = String.valueOf(System.getProperties());
+        
+        final SecurityManager sm = System.getSecurityManager();
+        
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        final String envAsString = AccessController.doPrivileged(new PrivilegedAction<String>() {
+            @Override
+            public String run() {
+                return String.valueOf(System.getenv());
+            }
+        });
+        
+        final String propsAsString = AccessController.doPrivileged(new PrivilegedAction<String>() {
+            @Override
+            public String run() {
+                return String.valueOf(System.getProperties());
+            }
+        });
+
         final String sha256 = DigestUtils.sha256Hex(configAsString+envAsString+propsAsString);
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_EXTERNAL_CONFIG, clusterService, null, null);
         msg.addSource(configAsString+"  "+envAsString+"  "+propsAsString+"  "+sha256);

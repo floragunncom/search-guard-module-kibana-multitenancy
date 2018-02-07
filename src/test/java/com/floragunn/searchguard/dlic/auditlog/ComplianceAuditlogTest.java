@@ -69,7 +69,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         System.out.println(response.getBody());
         Thread.sleep(1500);
         System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+        Assert.assertTrue(TestAuditlogImpl.messages.size() >= 1);
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_DOC_READ"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Designation"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Salary"));

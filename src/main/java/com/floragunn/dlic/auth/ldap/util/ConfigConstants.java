@@ -37,6 +37,9 @@ public final class ConfigConstants {
     public static final String LDAP_FAKE_LOGIN_DN = "fakelogin_dn";
     public static final String LDAP_FAKE_LOGIN_PASSWORD = "fakelogin_password";
     
+    public static final String LDAP_CONNECT_TIMEOUT = "connect_timeout"; //com.sun.jndi.ldap.connect.timeout
+    public static final String LDAP_RESPONSE_TIMEOUT = "response_timeout"; //com.sun.jndi.ldap.read.timeout
+    
     //ssl
     public static final String LDAPS_VERIFY_HOSTNAMES = "verify_hostnames";
     public static final boolean LDAPS_VERIFY_HOSTNAMES_DEFAULT = true;

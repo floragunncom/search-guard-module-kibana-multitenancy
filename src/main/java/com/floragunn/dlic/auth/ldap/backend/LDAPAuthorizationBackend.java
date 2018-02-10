@@ -117,8 +117,9 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
         }
 
     }
-
-    private static Connection getConnection0(final Settings settings, final Path configPath) throws KeyStoreException, NoSuchAlgorithmException,
+    
+	@SuppressWarnings("unchecked")
+	private static Connection getConnection0(final Settings settings, final Path configPath) throws KeyStoreException, NoSuchAlgorithmException,
     CertificateException, FileNotFoundException, IOException, LdapException {
         final boolean enableSSL = settings.getAsBoolean(ConfigConstants.LDAPS_ENABLE_SSL, false);
 

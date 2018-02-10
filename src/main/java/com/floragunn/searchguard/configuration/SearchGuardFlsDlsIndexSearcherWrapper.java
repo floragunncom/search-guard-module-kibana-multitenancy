@@ -80,7 +80,8 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
         this.namedXContentRegistry = indexService.xContentRegistry();
     }
 
-    @Override
+    @SuppressWarnings("unchecked")
+	@Override
     protected DirectoryReader dlsFlsWrap(final DirectoryReader reader) throws IOException {
 
         Set<String> flsFields = null;

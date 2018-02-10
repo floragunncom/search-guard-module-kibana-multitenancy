@@ -34,6 +34,7 @@ import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 
 public class SearchGuardRestApiActions {
 
+	@SuppressWarnings("deprecation")
 	public static Collection<RestHandler> getHandler(Settings settings, Path configPath, RestController controller, Client client, 
 	        AdminDNs adminDns, IndexBaseConfigurationRepository cr, ClusterService cs, PrincipalExtractor principalExtractor, 
 	        final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog) {

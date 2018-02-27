@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.auditlog.sink;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

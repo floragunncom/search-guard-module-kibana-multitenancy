@@ -31,6 +31,12 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
+import com.floragunn.searchguard.auditlog.sink.DebugSink;
+import com.floragunn.searchguard.auditlog.sink.InternalESSink;
+import com.floragunn.searchguard.auditlog.sink.ExternalESSink;
+import com.floragunn.searchguard.auditlog.sink.Log4JSink;
+import com.floragunn.searchguard.auditlog.sink.WebhookSink;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public final class AuditLogImpl extends AbstractAuditLog {
@@ -105,27 +111,27 @@ public final class AuditLogImpl extends AbstractAuditLog {
 		if (type != null) {
 			switch (type.toLowerCase()) {
 			case "internal_elasticsearch":
-				delegate = new ESAuditLog(settings, configPath, clientProvider, threadPool, index, doctype, resolver, clusterService);
+				delegate = new InternalESSink(settings, configPath, clientProvider, threadPool, index, doctype, resolver, clusterService);
 				break;
 			case "external_elasticsearch":
 				try {
-					delegate = new HttpESAuditLog(settings, configPath, threadPool, resolver, clusterService);
+					delegate = new ExternalESSink(settings, configPath, threadPool, resolver, clusterService);
 				} catch (Exception e) {
 					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to", e);
 				}
 				break;
 			case "webhook":
 				try {
-                    delegate = new WebhookAuditLog(settings, configPath, threadPool, resolver, clusterService);
+                    delegate = new WebhookSink(settings, configPath, threadPool, resolver, clusterService);
                 } catch (Exception e1) {
                     log.error("Audit logging unavailable: Unable to setup WebhookAuditLog due to", e1);
                 }
 				break;				
 			case "debug":
-				delegate = new DebugAuditLog(settings, configPath, threadPool, resolver, clusterService);
+				delegate = new DebugSink(settings, configPath, threadPool, resolver, clusterService);
 				break;
 			case "log4j":
-                delegate = new Log4JAuditLog(settings, configPath, threadPool, resolver, clusterService);
+                delegate = new Log4JSink(settings, configPath, threadPool, resolver, clusterService);
                 break;
 			default:
                 try {

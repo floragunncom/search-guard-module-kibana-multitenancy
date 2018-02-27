@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
+ * Copyright 2017 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,29 +12,39 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.auditlog.sink;
 
 import java.nio.file.Path;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-public final class DebugAuditLog extends AuditLogSink {
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
-    public DebugAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
+public final class Log4JSink extends AuditLogSink {
+
+    private final Logger auditLogger;
+    private final Level logLevel;
+
+    public Log4JSink(final Settings settings, final Path configPath, ThreadPool threadPool,
             final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super(settings, threadPool, resolver, clusterService);
+        auditLogger = LogManager.getLogger(settings.get("searchguard.audit.config.log4j.logger_name","sgaudit"));
+        logLevel = Level.toLevel(settings.get("searchguard.audit.config.log4j.level","INFO").toUpperCase());
     }
 
-    public boolean isHandlingBackpressure() {
+    /*public boolean isHandlingBackpressure() {
         return true;
-    }
+    }*/
 
     @Override
     public void store(final AuditMessage msg) {
-        System.out.println("AUDIT_LOG: " + msg.toPrettyString());
+        auditLogger.log(logLevel, msg.toJson());
     }
 
 }

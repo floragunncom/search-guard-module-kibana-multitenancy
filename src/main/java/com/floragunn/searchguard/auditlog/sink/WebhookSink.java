@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.auditlog.sink;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -42,11 +42,12 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PemKeyReader;
 
-class WebhookAuditLog extends AuditLogSink {
+public class WebhookSink extends AuditLogSink {
 	
 	/* HttpClient is thread safe */
 	private final CloseableHttpClient httpClient;
@@ -56,7 +57,7 @@ class WebhookAuditLog extends AuditLogSink {
 	final boolean verifySSL;
 	final KeyStore effectiveTruststore;
 
-	WebhookAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
+	public WebhookSink(final Settings settings, final Path configPath, ThreadPool threadPool,
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) throws Exception {
 		super(settings, threadPool, resolver, clusterService);
 		

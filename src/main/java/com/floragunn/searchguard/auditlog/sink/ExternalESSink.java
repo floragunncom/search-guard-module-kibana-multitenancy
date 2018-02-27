@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.auditlog.sink;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -30,13 +30,14 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.httpclient.HttpClient;
 import com.floragunn.searchguard.httpclient.HttpClient.HttpClientBuilder;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PemKeyReader;
 
-public final class HttpESAuditLog extends AuditLogSink {
+public final class ExternalESSink extends AuditLogSink {
 
     private static final List<String> DEFAULT_TLS_PROTOCOLS = Arrays.asList(new String[] { "TLSv1.2", "TLSv1.1"});
 	// config in elasticsearch.yml
@@ -48,7 +49,7 @@ public final class HttpESAuditLog extends AuditLogSink {
 	
     static final String PKCS12 = "PKCS12";
 
-	public HttpESAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
+	public ExternalESSink(final Settings settings, final Path configPath, ThreadPool threadPool,
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) throws Exception {
 
 		super(settings, threadPool, resolver, clusterService);

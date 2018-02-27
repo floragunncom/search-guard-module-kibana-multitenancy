@@ -19,14 +19,20 @@ import org.elasticsearch.common.settings.Settings.Builder;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
+import com.floragunn.searchguard.auditlog.sink.DebugSink;
+import com.floragunn.searchguard.auditlog.sink.InternalESSink;
+import com.floragunn.searchguard.auditlog.sink.ExternalESSink;
+import com.floragunn.searchguard.auditlog.sink.MyOwnAuditLog;
+
 public class DelegateTest {
 	@Test
 	public void auditLogTypeTest() throws Exception{
-		testAuditType("DeBUg", DebugAuditLog.class);
-		testAuditType("intERnal_Elasticsearch", ESAuditLog.class);
-		testAuditType("EXTERnal_Elasticsearch", HttpESAuditLog.class);
-		testAuditType("com.floragunn.searchguard.auditlog.impl.MyOwnAuditLog", MyOwnAuditLog.class);
-		testAuditType("Com.Floragunn.searchguard.auditlog.impl.MyOwnAuditLog", null);
+		testAuditType("DeBUg", DebugSink.class);
+		testAuditType("intERnal_Elasticsearch", InternalESSink.class);
+		testAuditType("EXTERnal_Elasticsearch", ExternalESSink.class);
+		testAuditType("com.floragunn.searchguard.auditlog.sink.MyOwnAuditLog", MyOwnAuditLog.class);
+		testAuditType("Com.Floragunn.searchguard.auditlog.sink.MyOwnAuditLog", null);
 		testAuditType("idonotexist", null);
 	}
 		

@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.auditlog.sink;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -29,17 +29,18 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 
-public final class ESAuditLog extends AuditLogSink {
+public final class InternalESSink extends AuditLogSink {
 
     private final Client clientProvider;
     private final String index;
     private final String type;
     private DateTimeFormatter indexPattern;
 
-    public ESAuditLog(final Settings settings, final Path configPath, final Client clientProvider, ThreadPool threadPool, String index, String type,
+    public InternalESSink(final Settings settings, final Path configPath, final Client clientProvider, ThreadPool threadPool, String index, String type,
             final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super(settings, threadPool, resolver, clusterService);
         this.clientProvider = clientProvider;

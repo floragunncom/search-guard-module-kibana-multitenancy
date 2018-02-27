@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.auditlog.sink;
 
 import java.io.IOException;
 
@@ -25,6 +25,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
+
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
 public abstract class AuditLogSink {
 

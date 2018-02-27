@@ -23,8 +23,8 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.auditlog.impl.AuditLogSink;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
+import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 
 public class TestAuditlogImpl extends AuditLogSink {
 

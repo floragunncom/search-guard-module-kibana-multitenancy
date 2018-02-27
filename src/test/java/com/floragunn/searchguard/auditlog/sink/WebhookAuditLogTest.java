@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.auditlog.sink;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -36,8 +36,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.auditlog.impl.WebhookAuditLog.WebhookFormat;
+import com.floragunn.searchguard.auditlog.impl.MockAuditMessageFactory;
+import com.floragunn.searchguard.auditlog.sink.WebhookSink.WebhookFormat;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class WebhookAuditLogTest {
@@ -193,7 +195,7 @@ public class WebhookAuditLogTest {
 				.build();
 
 		// just make sure no exception is thrown
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
+		WebhookSink auditlog = new WebhookSink(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
 	}
@@ -221,7 +223,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.build();
 
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
+		WebhookSink auditlog = new WebhookSink(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
@@ -238,7 +240,7 @@ public class WebhookAuditLogTest {
 				.put("path.home", ".")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings, null, null, null, null);
+		auditlog = new WebhookSink(settings, null, null, null, null);
 		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
@@ -255,7 +257,7 @@ public class WebhookAuditLogTest {
 				.put("path.home", ".")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings, null, null, null, null);
+		auditlog = new WebhookSink(settings, null, null, null, null);
 		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
@@ -271,7 +273,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.build();
 
-		auditlog = new WebhookAuditLog(settings, null, null, null, null);
+		auditlog = new WebhookSink(settings, null, null, null, null);
 		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body.equals(""));
@@ -287,7 +289,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.build();
 
-		auditlog = new WebhookAuditLog(settings, null, null, null, null);
+		auditlog = new WebhookSink(settings, null, null, null, null);
 		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("GET"));
 		Assert.assertTrue(handler.body.equals(""));
@@ -319,7 +321,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.build();
 
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
+		WebhookSink auditlog = new WebhookSink(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
 		Assert.assertTrue(handler.method == null);
@@ -353,7 +355,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore_fail.jks"))
 				.build();
 
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
+		WebhookSink auditlog = new WebhookSink(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
 		Assert.assertTrue(handler.method, handler.method == null);
@@ -371,7 +373,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.build();
 		try {
-            auditlog = new WebhookAuditLog(settings, null, null, null, null);
+            auditlog = new WebhookSink(settings, null, null, null, null);
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("Failed to parse value [foobar]"));
         }
@@ -386,7 +388,7 @@ public class WebhookAuditLogTest {
                 .put("searchguard.ssl.transport.truststore_filepath",
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.build();
-		auditlog = new WebhookAuditLog(settings, null, null, null, null);
+		auditlog = new WebhookSink(settings, null, null, null, null);
 		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
@@ -422,7 +424,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/chain-ca.pem"))
                 .build();
 
-        WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
+        WebhookSink auditlog = new WebhookSink(settings, null, null, null, null);
         auditlog.store(msg);
         Assert.assertTrue(handler.method.equals("POST"));
         Assert.assertTrue(handler.body != null);
@@ -437,7 +439,7 @@ public class WebhookAuditLogTest {
                 .put("searchguard.audit.config.webhook.ssl.verify", false)
                 .put("path.home", ".")
                 .build();
-        auditlog = new WebhookAuditLog(settings, null, null, null, null);
+        auditlog = new WebhookSink(settings, null, null, null, null);
         auditlog.store(msg);
         Assert.assertTrue(handler.method.equals("POST"));
         Assert.assertTrue(handler.body != null);
@@ -452,7 +454,7 @@ public class WebhookAuditLogTest {
                 .put("searchguard.audit.config.webhook.ssl.verify", true)
                 .put("path.home", ".")
                 .build();
-        auditlog = new WebhookAuditLog(settings, null, null, null, null);
+        auditlog = new WebhookSink(settings, null, null, null, null);
         auditlog.store(msg);
         Assert.assertNull(handler.method);
                 

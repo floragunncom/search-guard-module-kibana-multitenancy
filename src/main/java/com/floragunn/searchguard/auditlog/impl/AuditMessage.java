@@ -391,19 +391,6 @@ public final class AuditMessage {
 		}
 	}
 
-	protected enum Category {
-        BAD_HEADERS,
-        FAILED_LOGIN,
-        MISSING_PRIVILEGES,
-        GRANTED_PRIVILEGES,
-        SG_INDEX_ATTEMPT,
-        SSL_EXCEPTION,
-        AUTHENTICATED,
-        COMPLIANCE_DOC_READ,
-        COMPLIANCE_DOC_WRITE,
-        COMPLIANCE_EXTERNAL_CONFIG;
-    }
-
     private String currentTime() {
         DateTime dt = new DateTime(DateTimeZone.UTC);
         return DEFAULT_FORMAT.print(dt);
@@ -420,6 +407,19 @@ public final class AuditMessage {
         }
 
         return String.valueOf(object);
+    }
+
+	public static enum Category {
+        BAD_HEADERS,
+        FAILED_LOGIN,
+        MISSING_PRIVILEGES,
+        GRANTED_PRIVILEGES,
+        SG_INDEX_ATTEMPT,
+        SSL_EXCEPTION,
+        AUTHENTICATED,
+        COMPLIANCE_DOC_READ,
+        COMPLIANCE_DOC_WRITE,
+        COMPLIANCE_EXTERNAL_CONFIG;
     }
 
 }

@@ -12,11 +12,13 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.auditlog.sink;
 
 import org.elasticsearch.common.settings.Settings;
 
-public class MockWebhookAuditLog extends WebhookAuditLog {
+import com.floragunn.searchguard.auditlog.sink.WebhookSink;
+
+public class MockWebhookAuditLog extends WebhookSink {
 	
 	String payload = null;
 	String url = null;

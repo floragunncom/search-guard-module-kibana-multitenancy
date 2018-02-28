@@ -12,16 +12,12 @@
  * 
  */
 
-package com.floragunn.searchguard.dlic.auditlog;
+package com.floragunn.searchguard.auditlog.integration;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
@@ -31,9 +27,8 @@ public class TestAuditlogImpl extends AuditLogSink {
     public static List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
     public static StringBuffer sb = new StringBuffer();
     
-    public TestAuditlogImpl(Settings settings, final Path configPath, ThreadPool threadPool, 
-            IndexNameExpressionResolver resolver, ClusterService clusterService) {
-        super(settings, threadPool, resolver, clusterService);
+    public TestAuditlogImpl(Settings settings, Settings sinkSettings) {
+        super(settings, sinkSettings);
     }
 
     @Override

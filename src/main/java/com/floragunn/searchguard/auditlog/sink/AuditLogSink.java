@@ -18,10 +18,7 @@ import java.io.IOException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.threadpool.ThreadPool;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
@@ -31,16 +28,12 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 public abstract class AuditLogSink {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
-    protected final ThreadPool threadPool;
-    protected final IndexNameExpressionResolver resolver;
-    protected final ClusterService clusterService;
     protected final Settings settings;
-
-    protected AuditLogSink(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
-        this.threadPool = threadPool;
+    protected final Settings sinkConfiguration;
+    
+    protected AuditLogSink(Settings settings, Settings sinkConfiguration) {
         this.settings = settings;
-        this.resolver = resolver;
-        this.clusterService = clusterService;    
+        this.sinkConfiguration = sinkConfiguration;
     }
     
     public boolean isHandlingBackpressure() {

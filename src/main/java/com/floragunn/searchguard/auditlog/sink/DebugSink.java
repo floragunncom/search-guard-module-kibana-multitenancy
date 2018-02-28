@@ -14,20 +14,14 @@
 
 package com.floragunn.searchguard.auditlog.sink;
 
-import java.nio.file.Path;
-
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
 public final class DebugSink extends AuditLogSink {
 
-    public DebugSink(final Settings settings, final Path configPath, ThreadPool threadPool,
-            final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
-        super(settings, threadPool, resolver, clusterService);
+    public DebugSink(final Settings settings, final Settings sinkSettings) {
+        super(settings, sinkSettings);
     }
 
     public boolean isHandlingBackpressure() {

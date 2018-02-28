@@ -12,7 +12,7 @@
  *
  */
 
-package com.floragunn.searchguard.auditlog;
+package com.floragunn.searchguard.auditlog.impl;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 
@@ -47,7 +47,7 @@ public class TracingTests extends SingleClusterTest {
     public void testHTTPTrace() throws Exception {
 
         final Settings settings = Settings.builder()
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "debug")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug")
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, "*")
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_WATCHED_INDICES, "*")
                 .put("searchguard.audit.resolve_bulk_requests", true)
@@ -333,7 +333,7 @@ public class TracingTests extends SingleClusterTest {
         Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, "*")
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_WATCHED_INDICES, "*")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "debug").build();
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (TransportClient tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {
@@ -382,7 +382,7 @@ public class TracingTests extends SingleClusterTest {
     public void testImmutableIndex() throws Exception {
         Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, "myindex1")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "debug").build();
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (TransportClient tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {

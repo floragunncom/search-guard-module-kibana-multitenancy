@@ -20,8 +20,6 @@ import java.nio.file.Path;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -39,13 +37,16 @@ public final class InternalESSink extends AuditLogSink {
     private final String index;
     private final String type;
     private DateTimeFormatter indexPattern;
-
-    public InternalESSink(final Settings settings, final Path configPath, final Client clientProvider, ThreadPool threadPool, String index, String type,
-            final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
-        super(settings, threadPool, resolver, clusterService);
+    private final ThreadPool threadPool;
+    
+    public InternalESSink(final Settings settings, final Settings sinkSettings, final Path configPath, final Client clientProvider, ThreadPool threadPool) {
+        super(settings, sinkSettings);
         this.clientProvider = clientProvider;
-        this.index = index;
-        this.type = type;
+
+        this.index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX,"'sg6-auditlog-'YYYY.MM.dd");
+        this.type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE,"auditlog");
+
+        this.threadPool = threadPool;
         try {
             this.indexPattern = DateTimeFormat.forPattern(index);
         } catch (IllegalArgumentException e) {

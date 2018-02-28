@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog;
+package com.floragunn.searchguard.auditlog.helper;
 
 import java.util.Collections;
 

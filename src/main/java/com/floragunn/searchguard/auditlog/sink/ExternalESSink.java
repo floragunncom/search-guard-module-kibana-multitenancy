@@ -23,10 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.threadpool.ThreadPool;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -49,13 +46,12 @@ public final class ExternalESSink extends AuditLogSink {
 	
     static final String PKCS12 = "PKCS12";
 
-	public ExternalESSink(final Settings settings, final Path configPath, ThreadPool threadPool,
-	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) throws Exception {
+	public ExternalESSink(final Settings settings, final Settings sinkSettings, final Path configPath) throws Exception {
 
-		super(settings, threadPool, resolver, clusterService);
+		super(settings, sinkSettings);
 		
-		servers = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_HTTP_ENDPOINTS, Collections.singletonList("localhost:9200"));
-		this.index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_INDEX, "'sg6-auditlog-'YYYY.MM.dd");
+		servers = sinkSettings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_HTTP_ENDPOINTS, Collections.singletonList("localhost:9200"));
+		this.index = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX, "'sg6-auditlog-'YYYY.MM.dd");
 		
 		try {
             this.indexPattern = DateTimeFormat.forPattern(index);
@@ -64,19 +60,19 @@ public final class ExternalESSink extends AuditLogSink {
                     + "If you have no date pattern configured you can safely ignore this message", e.getMessage());
         }
 		
-		this.type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_TYPE, "auditlog");
-		final boolean verifyHostnames = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_SSL_VERIFY_HOSTNAMES, true);
-		final boolean enableSsl = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLE_SSL, false);
-		final boolean enableSslClientAuth = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH , ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH_DEFAULT);
-		final String user = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_USERNAME);
-		final String password = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_PASSWORD);
+		this.type = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE, "auditlog");
+		final boolean verifyHostnames = sinkSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_VERIFY_HOSTNAMES, true);
+		final boolean enableSsl = sinkSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_ENABLE_SSL, false);
+		final boolean enableSslClientAuth = sinkSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_ENABLE_SSL_CLIENT_AUTH , ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH_DEFAULT);
+		final String user = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_USERNAME);
+		final String password = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PASSWORD);
 
 		final HttpClientBuilder builder = HttpClient.builder(servers.toArray(new String[0]));
 
 		if (enableSsl) {
 		    
-		    final boolean pem = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, null) != null
-                    || settings.get(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_CONTENT, null) != null;
+		    final boolean pem = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMTRUSTEDCAS_FILEPATH, null) != null
+                    || sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMTRUSTEDCAS_CONTENT, null) != null;
            
 		    KeyStore effectiveTruststore;
 		    KeyStore effectiveKeystore;
@@ -84,23 +80,26 @@ public final class ExternalESSink extends AuditLogSink {
 		    String effectiveKeyAlias;
 		    
 		    if(pem) {
-                X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_CONTENT, settings));
+                X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMTRUSTEDCAS_CONTENT, sinkSettings));
                 
                 if(trustCertificates == null) {
-                    trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, settings, configPath, true));
+                	String path = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMTRUSTEDCAS_FILEPATH);
+                    trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(path, ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMTRUSTEDCAS_FILEPATH, settings, configPath, true));
                 }
                 
                 //for client authentication
-                X509Certificate[] authenticationCertificate = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMCERT_CONTENT, settings));
+                X509Certificate[] authenticationCertificate = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMCERT_CONTENT, sinkSettings));
                 
                 if(authenticationCertificate == null) {
-                    authenticationCertificate = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMCERT_FILEPATH, settings, configPath, enableSslClientAuth));
+                	String path = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMCERT_FILEPATH);
+                    authenticationCertificate = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(path, ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMCERT_FILEPATH, settings, configPath, enableSslClientAuth));
                 }
                 
-                PrivateKey authenticationKey = PemKeyReader.loadKeyFromStream(settings.get(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_PASSWORD), PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_CONTENT, settings));
+                PrivateKey authenticationKey = PemKeyReader.loadKeyFromStream(sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMKEY_PASSWORD), PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMKEY_CONTENT, sinkSettings));
                 
                 if(authenticationKey == null) {
-                    authenticationKey = PemKeyReader.loadKeyFromFile(settings.get(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_PASSWORD), PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_FILEPATH, settings, configPath, enableSslClientAuth));    
+                	String path = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMKEY_FILEPATH);
+                    authenticationKey = PemKeyReader.loadKeyFromFile(sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMKEY_PASSWORD), PemKeyReader.resolve(path, ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMKEY_FILEPATH, settings, configPath, enableSslClientAuth));    
                 }
           
                 effectiveKeyPassword = PemKeyReader.randomChars(12);
@@ -123,10 +122,10 @@ public final class ExternalESSink extends AuditLogSink {
                         , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_TYPE));
                 final String keyStorePassword = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_PASSWORD, SSLConfigConstants.DEFAULT_STORE_PASSWORD);
                 effectiveKeyPassword = keyStorePassword==null||keyStorePassword.isEmpty()?null:keyStorePassword.toCharArray();
-                effectiveKeyAlias = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_SSL_JKS_CERT_ALIAS, null);
+                effectiveKeyAlias = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_JKS_CERT_ALIAS, null);
                 
                 if(enableSslClientAuth && effectiveKeyAlias == null) {
-                    throw new IllegalArgumentException(ConfigConstants.SEARCHGUARD_AUDIT_SSL_JKS_CERT_ALIAS+" not given");
+                    throw new IllegalArgumentException(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_JKS_CERT_ALIAS+" not given");
                 }
                 
                 effectiveTruststore = trustStore;
@@ -139,8 +138,8 @@ public final class ExternalESSink extends AuditLogSink {
                 
             }   
 		    
-		    final List<String> enabledCipherSuites = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_CIPHERS, null);   
-            final List<String> enabledProtocols = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_PROTOCOLS, DEFAULT_TLS_PROTOCOLS);   
+		    final List<String> enabledCipherSuites = sinkSettings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_ENABLED_SSL_CIPHERS, null);   
+            final List<String> enabledProtocols = sinkSettings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_ENABLED_SSL_PROTOCOLS, DEFAULT_TLS_PROTOCOLS);   
             
             builder.setSupportedCipherSuites(enabledCipherSuites==null?null:enabledCipherSuites.toArray(new String[0]));
             builder.setSupportedProtocols(enabledProtocols.toArray(new String[0]));

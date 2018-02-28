@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.dlic.auditlog;
+package com.floragunn.searchguard.auditlog;
 
 import org.apache.http.Header;
 import org.elasticsearch.common.settings.Settings;

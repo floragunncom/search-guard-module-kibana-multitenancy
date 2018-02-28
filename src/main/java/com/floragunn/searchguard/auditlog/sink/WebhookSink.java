@@ -36,8 +36,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.TrustStrategy;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -57,18 +55,17 @@ public class WebhookSink extends AuditLogSink {
 	final boolean verifySSL;
 	final KeyStore effectiveTruststore;
 
-	public WebhookSink(final Settings settings, final Path configPath, ThreadPool threadPool,
-	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) throws Exception {
-		super(settings, threadPool, resolver, clusterService);
+	public WebhookSink(final Settings settings, final Settings sinkConfig, final Path configPath) throws Exception {
+		super(settings, sinkConfig);
 		
-		final boolean pem = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
-                || settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
+		final boolean pem = sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
+                || sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
 
 		if(pem) {
-		    X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, settings));
+		    X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, sinkConfig));
             
             if(trustCertificates == null) {
-                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, settings, configPath, false));
+                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, sinkConfig, configPath, false));
             }
             
             effectiveTruststore = PemKeyReader.toTruststore("alw", trustCertificates);
@@ -81,10 +78,10 @@ public class WebhookSink extends AuditLogSink {
 		}
 		
 		
-		final String webhookUrl = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_WEBHOOK_URL);
-		final String format = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_WEBHOOK_FORMAT);
+		final String webhookUrl = sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_URL);
+		final String format = sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_FORMAT);
 		
-		verifySSL = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_WEBHOOK_SSL_VERIFY, true);
+		verifySSL = sinkConfig.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_SSL_VERIFY, true);
 		httpClient = getHttpClient();
 		
 		if(httpClient == null) {
@@ -215,7 +212,7 @@ public class WebhookSink extends AuditLogSink {
 		}		
 	}
 
-	boolean doGet(String url) {
+	protected boolean doGet(String url) {
 		HttpGet httpGet = new HttpGet(url);
 		CloseableHttpResponse serverResponse = null;
 		try {
@@ -268,7 +265,7 @@ public class WebhookSink extends AuditLogSink {
 
 	}
 	
-	boolean doPost(String url, String payload) {
+	protected boolean doPost(String url, String payload) {
 
 		HttpPost postRequest = new HttpPost(url);
 

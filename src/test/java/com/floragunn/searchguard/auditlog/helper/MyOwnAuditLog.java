@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.sink;
+package com.floragunn.searchguard.auditlog.helper;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -23,12 +23,13 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
+import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 
 public class MyOwnAuditLog extends AuditLogSink {
 
-	public MyOwnAuditLog(Settings settings, final Path configPath, ThreadPool threadPool,
+	public MyOwnAuditLog(Settings settings, Settings sinkSettings, final Path configPath, ThreadPool threadPool,
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
-        super(settings, threadPool, resolver, clusterService);
+        super(settings, sinkSettings);
     }
 
     @Override

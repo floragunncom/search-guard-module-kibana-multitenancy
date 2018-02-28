@@ -20,22 +20,22 @@ import com.floragunn.searchguard.auditlog.sink.WebhookSink;
 
 public class MockWebhookAuditLog extends WebhookSink {
 	
-	String payload = null;
-	String url = null;
+	public String payload = null;
+	public String url = null;
 	
-	MockWebhookAuditLog(Settings settings) throws Exception {
-		super(settings, null, null, null, null);
+	public MockWebhookAuditLog(Settings settings, Settings sinkSettings) throws Exception {
+		super(settings, sinkSettings, null);
 	}
 
 	@Override
-	boolean doPost(String url, String payload) {
+	protected boolean doPost(String url, String payload) {
 		this.payload = payload;
 		return true;
 	}
 	
 	
 	@Override
-	boolean doGet(String url) {
+	protected boolean doGet(String url) {
 		this.url = url;
 		return true;
 	}

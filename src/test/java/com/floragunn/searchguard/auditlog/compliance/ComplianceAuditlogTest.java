@@ -12,7 +12,7 @@
  *
  */
 
-package com.floragunn.searchguard.dlic.auditlog;
+package com.floragunn.searchguard.auditlog.compliance;
 
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
@@ -20,6 +20,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
+import com.floragunn.searchguard.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 

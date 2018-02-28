@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -36,9 +35,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.auditlog.MockRestRequest;
+import com.floragunn.searchguard.auditlog.helper.MockRestRequest;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.dlic.auditlog.TestAuditlogImpl;
+import com.floragunn.searchguard.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.AbstractSGUnitTest;
 import com.google.common.base.Joiner;
@@ -67,8 +66,7 @@ public class DisabledCategoriesTest {
 		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
 		logAll(auditLog);
 
-		auditLog.pool.shutdown();
-		auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
+		auditLog.close();
 
 		String result = TestAuditlogImpl.sb.toString();
 		Assert.assertTrue(categoriesPresentInLog(result, filterComplianceCategories(Category.values())));
@@ -102,8 +100,7 @@ public class DisabledCategoriesTest {
 
 		// we're using the ExecutorService in AuditLogImpl, so we need to wait
 		// until all tasks are finished before we can check the result
-		auditLog.pool.shutdown();
-		auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
+		auditLog.close();
 
 		String result = TestAuditlogImpl.sb.toString();
 

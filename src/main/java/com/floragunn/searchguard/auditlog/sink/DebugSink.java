@@ -20,8 +20,8 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
 public final class DebugSink extends AuditLogSink {
 
-    public DebugSink(final Settings settings, final Settings sinkSettings) {
-        super(settings, sinkSettings);
+    public DebugSink(String name, final Settings settings, final Settings sinkSettings) {
+        super(name, settings, sinkSettings);
     }
 
     public boolean isHandlingBackpressure() {

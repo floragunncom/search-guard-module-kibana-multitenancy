@@ -27,8 +27,8 @@ public class TestAuditlogImpl extends AuditLogSink {
     public static List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
     public static StringBuffer sb = new StringBuffer();
     
-    public TestAuditlogImpl(Settings settings, Settings sinkSettings) {
-        super(settings, sinkSettings);
+    public TestAuditlogImpl(String name, Settings settings, Settings sinkSettings) {
+        super(name, settings, sinkSettings);
     }
 
     @Override

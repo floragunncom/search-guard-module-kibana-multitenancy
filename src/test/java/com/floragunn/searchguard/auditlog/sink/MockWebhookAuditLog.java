@@ -24,7 +24,7 @@ public class MockWebhookAuditLog extends WebhookSink {
 	public String url = null;
 	
 	public MockWebhookAuditLog(Settings settings, Settings sinkSettings) throws Exception {
-		super(settings, sinkSettings, null);
+		super("test", settings, sinkSettings, null);
 	}
 
 	@Override

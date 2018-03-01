@@ -39,8 +39,8 @@ public final class InternalESSink extends AuditLogSink {
     private DateTimeFormatter indexPattern;
     private final ThreadPool threadPool;
     
-    public InternalESSink(final Settings settings, final Settings sinkSettings, final Path configPath, final Client clientProvider, ThreadPool threadPool) {
-        super(settings, sinkSettings);
+    public InternalESSink(final String name, final Settings settings, final Settings sinkSettings, final Path configPath, final Client clientProvider, ThreadPool threadPool) {
+        super(name, settings, sinkSettings);
         this.clientProvider = clientProvider;
 
         this.index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX,"'sg6-auditlog-'YYYY.MM.dd");

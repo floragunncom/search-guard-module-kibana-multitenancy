@@ -26,8 +26,8 @@ public final class Log4JSink extends AuditLogSink {
     private final Logger auditLogger;
     private final Level logLevel;
 
-    public Log4JSink(final Settings settings, final Settings sinkSettings) {
-        super(settings, sinkSettings);
+    public Log4JSink(final String name, final Settings settings, final Settings sinkSettings) {
+        super(name, settings, sinkSettings);
         auditLogger = LogManager.getLogger(settings.get("searchguard.audit.config.log4j.logger_name","sgaudit"));
         logLevel = Level.toLevel(settings.get("searchguard.audit.config.log4j.level","INFO").toUpperCase());
     }

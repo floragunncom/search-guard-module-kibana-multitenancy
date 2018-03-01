@@ -46,9 +46,9 @@ public final class ExternalESSink extends AuditLogSink {
 	
     static final String PKCS12 = "PKCS12";
 
-	public ExternalESSink(final Settings settings, final Settings sinkSettings, final Path configPath) throws Exception {
+	public ExternalESSink(final String name, final Settings settings, final Settings sinkSettings, final Path configPath) throws Exception {
 
-		super(settings, sinkSettings);
+		super(name, settings, sinkSettings);
 		
 		servers = sinkSettings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_HTTP_ENDPOINTS, Collections.singletonList("localhost:9200"));
 		this.index = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX, "'sg6-auditlog-'YYYY.MM.dd");

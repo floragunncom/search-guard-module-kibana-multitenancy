@@ -55,8 +55,8 @@ public class WebhookSink extends AuditLogSink {
 	final boolean verifySSL;
 	final KeyStore effectiveTruststore;
 
-	public WebhookSink(final Settings settings, final Settings sinkConfig, final Path configPath) throws Exception {
-		super(settings, sinkConfig);
+	public WebhookSink(final String name, final Settings settings, final Settings sinkConfig, final Path configPath) throws Exception {
+		super(name, settings, sinkConfig);
 		
 		final boolean pem = sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
                 || sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;

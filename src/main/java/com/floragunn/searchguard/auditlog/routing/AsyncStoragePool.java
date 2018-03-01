@@ -1,6 +1,18 @@
+/*
+ * Copyright 2016-2018 by floragunn GmbH - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
 package com.floragunn.searchguard.auditlog.routing;
 
-import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -14,7 +26,7 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.support.ConfigConstants;
 
-public class StoragePool {
+public class AsyncStoragePool {
 
 	protected final Logger log = LogManager.getLogger(this.getClass());
 	
@@ -24,7 +36,7 @@ public class StoragePool {
 	// package private for unit tests :(
 	final ExecutorService pool;
 
-	public StoragePool(final Settings settings) {
+	public AsyncStoragePool(final Settings settings) {
 		int threadPoolSize = settings
 				.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_SIZE, DEFAULT_THREAD_POOL_SIZE).intValue();
 		int threadPoolMaxQueueLen = settings

@@ -30,16 +30,21 @@ public abstract class AuditLogSink {
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Settings settings;
     protected final Settings sinkConfiguration;
+    private final String name;
     
-    protected AuditLogSink(Settings settings, Settings sinkConfiguration) {
-        this.settings = settings;
+    protected AuditLogSink(String name, Settings settings, Settings sinkConfiguration) {
+        this.name = name;
+    	this.settings = settings;
         this.sinkConfiguration = sinkConfiguration;
     }
     
     public boolean isHandlingBackpressure() {
         return false;
     }
-
+    
+    public String getName() {
+    	return name;
+    }
     public abstract void store(AuditMessage msg);
     
     public void close() throws IOException {
@@ -51,5 +56,10 @@ public abstract class AuditLogSink {
             return index;
         }
         return indexPattern.print(DateTime.now(DateTimeZone.UTC));
+    }
+    
+    @Override
+    public String toString() {    	
+    	return ("AudtLogSink: Name: " + name+", type: " + this.getClass().getSimpleName());
     }
 }

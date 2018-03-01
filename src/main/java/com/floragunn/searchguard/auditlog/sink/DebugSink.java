@@ -14,14 +14,12 @@
 
 package com.floragunn.searchguard.auditlog.sink;
 
-import org.elasticsearch.common.settings.Settings;
-
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
 public final class DebugSink extends AuditLogSink {
 
-    public DebugSink(String name, final Settings settings, final Settings sinkSettings) {
-        super(name, settings, sinkSettings);
+    public DebugSink(String name) {
+        super(name, null, null);
     }
 
     public boolean isHandlingBackpressure() {

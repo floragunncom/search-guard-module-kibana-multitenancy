@@ -41,7 +41,7 @@ public final class ExternalESSink extends AuditLogSink {
 	private final String index;
 	private final String type;
 	private final HttpClient client;
-	private final List<String> servers;
+	private List<String> servers;
 	private DateTimeFormatter indexPattern;
 	
     static final String PKCS12 = "PKCS12";
@@ -50,7 +50,12 @@ public final class ExternalESSink extends AuditLogSink {
 
 		super(name, settings, sinkSettings);
 		
-		servers = sinkSettings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_HTTP_ENDPOINTS, Collections.singletonList("localhost:9200"));
+		servers = sinkSettings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_HTTP_ENDPOINTS);
+		if (servers == null || servers.size() == 0) {
+			log.error("No http endpoints configured for external Elasticsearch endpoint '{}', falling back to localhost.", name);
+			servers = Collections.singletonList("localhost:9200");
+		}
+		
 		this.index = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX, "'sg6-auditlog-'YYYY.MM.dd");
 		
 		try {

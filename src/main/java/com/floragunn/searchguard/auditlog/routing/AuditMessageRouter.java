@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.auditlog.routing;
 
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -30,6 +31,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
+import com.floragunn.searchguard.auditlog.sink.DebugSink;
 import com.floragunn.searchguard.auditlog.sink.SinkProvider;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -37,11 +39,11 @@ import com.floragunn.searchguard.support.ConfigConstants;
 public class AuditMessageRouter {
 
 	protected final Logger log = LogManager.getLogger(this.getClass());	
+	final AuditLogSink defaultSink;
 	final Map<Category, List<AuditLogSink>> categorySinks = new HashMap<>();
-	final List<AuditLogSink> defaultSinks = new LinkedList<>();
 	final SinkProvider sinkProvider;
 	final AsyncStoragePool storagePool;
-
+	boolean hasMultipleEndpoints;
 	
 	public AuditMessageRouter(final Settings settings, final Client clientProvider, ThreadPool threadPool,
 			final Path configPath) {
@@ -49,11 +51,9 @@ public class AuditMessageRouter {
 		this.storagePool = new AsyncStoragePool(settings);
 		
 		// get the default sink
-		AuditLogSink defaultSink = sinkProvider.getDefaultSink();
-		if (defaultSink != null) {
-			defaultSinks.add(defaultSink);
-		} else {
-			log.warn("No default sink available, audit log may not work properly. Please check configuration");
+		this.defaultSink = sinkProvider.getDefaultSink();
+		if (defaultSink == null) {
+			log.warn("No default storage available, audit log may not work properly. Please check configuration. Using debug storage type instead.");			
 		}
 		
 		// create sinks for categories/routes
@@ -72,11 +72,12 @@ public class AuditMessageRouter {
 					categorySinks.put(category, sinksForCategory);
 				}
 				createSinksForCategory(category, sinksForCategory, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES + "." + categoryName));
+				hasMultipleEndpoints = true;
 			} catch (Exception e ) {
 				log.error("Invalid category '{}' found in routing configuration. Must be one of: {}", categoryName, Category.values());
 			}
 		}
-		log.debug("");
+		
 	}
 
 	private void createSinksForCategory(Category category, List<AuditLogSink> sinksForCategory, Settings configuration) {
@@ -85,7 +86,7 @@ public class AuditMessageRouter {
 			if (log.isDebugEnabled()) {
 				log.debug("Will include default sinks for category {}", category);	
 			}			
-			sinksForCategory.addAll(defaultSinks);
+			sinksForCategory.add(defaultSink);
 		}
 		// add all other sinks, create on the fly
 		List<String> sinks = configuration.getAsList("endpoints");
@@ -104,29 +105,36 @@ public class AuditMessageRouter {
 	}
 
 	public void route(final AuditMessage msg) {
-		List<AuditLogSink> sinks = getSinksFor(msg);
-		for (AuditLogSink sink : sinks) {
-			if (sink.isHandlingBackpressure()) {
-				sink.store(msg);
-				if (log.isTraceEnabled()) {
-					log.trace("stored on sink {} synchronously", sink.getClass().getSimpleName());
-				}
-			} else {
-				storagePool.submit(msg, sink);
-				if (log.isTraceEnabled()) {
-					log.trace("will store on sink {} asynchronously", sink.getClass().getSimpleName());
-				}
-			}
+		if (!hasMultipleEndpoints) {
+			store(defaultSink, msg);
+		} else {
+			for (AuditLogSink sink : getSinksFor(msg)) {
+				store(sink, msg);
+			}			
 		}
 	}
+	
+	private void store(AuditLogSink sink, AuditMessage msg) {
+		if (sink.isHandlingBackpressure()) {
+			sink.store(msg);
+			if (log.isTraceEnabled()) {
+				log.trace("stored on sink {} synchronously", sink.getClass().getSimpleName());
+			}
+		} else {
+			storagePool.submit(msg, sink);
+			if (log.isTraceEnabled()) {
+				log.trace("will store on sink {} asynchronously", sink.getClass().getSimpleName());
+			}
+		}		
+	}
 
-
+	@SuppressWarnings("unchecked")
 	protected List<AuditLogSink> getSinksFor(AuditMessage message) {
 		Category category = message.getCategory();
 		if (categorySinks.containsKey(message.getCategory())) {
 			return categorySinks.get(category);
 		}
-		return defaultSinks;
+		return Collections.EMPTY_LIST;
 	}
 
 	public void close() {

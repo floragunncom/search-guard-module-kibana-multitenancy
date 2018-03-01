@@ -33,7 +33,7 @@ public class SinkProvider {
 	private final Path configPath;
 	private final Settings settings;
 	final Map<String, AuditLogSink> allSinks = new HashMap<>();
-	final AuditLogSink defaultSink;
+	AuditLogSink defaultSink;
 
 	public SinkProvider(final Settings settings, final Client clientProvider, ThreadPool threadPool,
 			final Path configPath) {
@@ -46,7 +46,9 @@ public class SinkProvider {
 		defaultSink = this.createSink("default", settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT), settings,
 				settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
 		if (defaultSink == null) {
-			log.error("Default sink could not be created, auditlog will not work.");
+			log.error(
+					"Default storage endpoint could not be created, auditlog will not work properly. Using debug storage endpoint instead.");
+			defaultSink = new DebugSink("default");
 		}
 
 	}
@@ -65,10 +67,9 @@ public class SinkProvider {
 		}
 		String type = sinkDefinition.get("type");
 		Settings sinkConfiguration = sinkDefinition.getAsSettings("config");
-		if (type == null || sinkConfiguration == null || sinkConfiguration.size() == 0) {
-			log.error(
-					"Invalid configuration for endpoint {} found. Either type is missing or configuration is empty. Found type '{}' and configuration'{}'",
-					sinkName, type, sinkConfiguration);
+		if (type == null) {
+			log.error("No type defined for endpoint {}.", sinkName);
+			return null;
 		}
 		AuditLogSink sink = createSink(sinkName, type, this.settings, sinkConfiguration);
 		if (sink == null) {
@@ -89,7 +90,7 @@ public class SinkProvider {
 	public void close() {
 		for (AuditLogSink sink : allSinks.values()) {
 			close(sink);
-		}		
+		}
 	}
 
 	protected void close(AuditLogSink sink) {
@@ -101,7 +102,8 @@ public class SinkProvider {
 		}
 	}
 
-	private final AuditLogSink createSink(final String name, final String type, final Settings settings, final Settings sinkSettings) {
+	private final AuditLogSink createSink(final String name, final String type, final Settings settings,
+			final Settings sinkSettings) {
 		AuditLogSink sink = null;
 		if (type != null) {
 			switch (type.toLowerCase()) {
@@ -123,7 +125,7 @@ public class SinkProvider {
 				}
 				break;
 			case "debug":
-				sink = new DebugSink(name, settings, sinkSettings);
+				sink = new DebugSink(name);
 				break;
 			case "log4j":
 				sink = new Log4JSink(name, settings, sinkSettings);
@@ -134,18 +136,20 @@ public class SinkProvider {
 
 					if (AuditLogSink.class.isAssignableFrom(delegateClass)) {
 						try {
-							sink = (AuditLogSink) delegateClass
-									.getConstructor(String.class, Settings.class, Settings.class, Settings.class, ThreadPool.class)
+							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class,
+									Settings.class, Settings.class, ThreadPool.class)
 									.newInstance(name, settings, sinkSettings, threadPool);
 						} catch (Throwable e) {
-							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class, Settings.class)
+							sink = (AuditLogSink) delegateClass
+									.getConstructor(String.class, Settings.class, Settings.class)
 									.newInstance(name, settings, sinkSettings);
 						}
 					} else {
 						log.error("Audit logging unavailable: '{}' is not a subclass of {}", type,
 								AuditLogSink.class.getSimpleName());
 					}
-				} catch (Throwable e) { // we need really catch a Throwable here!
+				} catch (Throwable e) { // we need really catch a Throwable
+										// here!
 					log.error("Audit logging unavailable: Cannot instantiate object of class {} due to " + e, type);
 				}
 			}

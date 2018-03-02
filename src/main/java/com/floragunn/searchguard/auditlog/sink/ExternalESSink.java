@@ -46,9 +46,9 @@ public final class ExternalESSink extends AuditLogSink {
 	
     static final String PKCS12 = "PKCS12";
 
-	public ExternalESSink(final String name, final Settings settings, final Settings sinkSettings, final Path configPath) throws Exception {
+	public ExternalESSink(final String name, final Settings settings, final Settings sinkSettings, final Path configPath, AuditLogSink fallbackSink) throws Exception {
 
-		super(name, settings, sinkSettings);
+		super(name, settings, sinkSettings, fallbackSink);
 		
 		servers = sinkSettings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_HTTP_ENDPOINTS);
 		if (servers == null || servers.size() == 0) {
@@ -170,16 +170,16 @@ public final class ExternalESSink extends AuditLogSink {
 		}
 	}
 
-	@Override
-	public void store(final AuditMessage msg) {
+	public boolean doStore(final AuditMessage msg) {
 		try {
 			boolean successful = client.index(msg.toString(), getExpandedIndexName(indexPattern, index), type, true);
-
 			if (!successful) {
 				log.error("Unable to send audit log {} to one of these servers: {}", msg, servers);
 			}
+			return successful;
 		} catch (Exception e) {
 			log.error("Unable to send audit log {} due to", msg, e);
+			return false;
 		}
 	}
 }

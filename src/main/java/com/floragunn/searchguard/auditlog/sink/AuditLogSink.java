@@ -31,11 +31,13 @@ public abstract class AuditLogSink {
     protected final Settings settings;
     protected final Settings sinkConfiguration;
     private final String name;
+    final AuditLogSink fallbackSink;
     
-    protected AuditLogSink(String name, Settings settings, Settings sinkConfiguration) {
+    protected AuditLogSink(String name, Settings settings, Settings sinkConfiguration, AuditLogSink fallbackSink) {
         this.name = name.toLowerCase();
     	this.settings = settings;
         this.sinkConfiguration = sinkConfiguration;
+        this.fallbackSink = fallbackSink;
     }
     
     public boolean isHandlingBackpressure() {
@@ -45,10 +47,19 @@ public abstract class AuditLogSink {
     public String getName() {
     	return name;
     }
-    public abstract void store(AuditMessage msg);
+    
+    public final void store(AuditMessage msg) {
+		if (!doStore(msg)) {
+			if (fallbackSink.doStore(msg)) {
+				System.out.println(msg.toPrettyString());
+			}
+		}
+    }
+    
+    protected abstract boolean doStore(AuditMessage msg);
     
     public void close() throws IOException {
-
+    	// to be implemented by subclasses 
     }
     
     protected String getExpandedIndexName(DateTimeFormatter indexPattern, String index) {
@@ -57,6 +68,7 @@ public abstract class AuditLogSink {
         }
         return indexPattern.print(DateTime.now(DateTimeZone.UTC));
     }
+    
     
     @Override
     public String toString() {    	

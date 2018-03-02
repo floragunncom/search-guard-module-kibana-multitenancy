@@ -14,8 +14,20 @@
 
 package com.floragunn.searchguard.auditlog.sink;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
+import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.bootstrap.HttpServer;
+import org.apache.http.impl.bootstrap.ServerBootstrap;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
 import org.junit.Assert;
@@ -23,6 +35,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
+import com.floragunn.searchguard.auditlog.helper.TestHttpHandler;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.WebhookSink.WebhookFormat;
@@ -45,23 +58,27 @@ public class WebhookAuditLogTest {
         }
     }
     
-//	@Test
-//	public void invalidConfTest() throws Exception {
-//		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-//
-//		// provide no settings, audit log not available
-//		Settings settings = Settings.builder()
-//		        .put("path.home", ".")
-//		        .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//		        .build();
-//		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
-//		auditlog.store(msg);
-//		Assert.assertEquals(null, auditlog.webhookFormat);
-//
-//	}
+	@Test
+	public void invalidConfFallbackTest() throws Exception {
+		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 
-	@SuppressWarnings("resource")
+		// provide no settings, fallback must be used
+		Settings settings = Settings.builder()
+		        .put("path.home", ".")
+		        .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+		        .build();
+		LoggingSink fallback = new LoggingSink("test", null);
+		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), fallback);
+		auditlog.store(msg);
+		// Webhook sink has failed ...
+		Assert.assertEquals(null, auditlog.webhookFormat);
+		// ... so message must be stored in fallback
+		Assert.assertEquals(1, fallback.messages.size());
+		Assert.assertEquals(msg, fallback.messages.get(0));
+
+	}
+
 	@Test
 	public void formatsTest() throws Exception {
 
@@ -77,7 +94,7 @@ public class WebhookAuditLogTest {
                 .put("searchguard.ssl.transport.enforce_hostname_verification", false)
 				.build();
 		
-		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
+		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null);
 		auditlog.store(msg);
 		Assert.assertEquals(WebhookFormat.TEXT, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.TEXT_PLAIN, auditlog.webhookFormat.getContentType());
@@ -91,7 +108,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.put("path.home", ".")
 				.build();
-		auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
+		auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null);
 		auditlog.store(msg);
 		Assert.assertEquals(WebhookFormat.TEXT, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.TEXT_PLAIN, auditlog.webhookFormat.getContentType());
@@ -106,7 +123,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))				
 				.put("path.home", ".")
 				.build();
-		auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
+		auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null);
 		auditlog.store(msg);
 		Assert.assertEquals(WebhookFormat.TEXT, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.TEXT_PLAIN, auditlog.webhookFormat.getContentType());
@@ -122,7 +139,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
                 .put("path.home", ".")
 				.build();
-		auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
+		auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null);
 		auditlog.store(msg);
 		System.out.println(auditlog.payload);
 		Assert.assertEquals(WebhookFormat.JSON, auditlog.webhookFormat);
@@ -139,7 +156,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))				
 				.put("path.home", ".")
 				.build();
-		auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
+		auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null);
 		auditlog.store(msg);
 		Assert.assertEquals(WebhookFormat.SLACK, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.APPLICATION_JSON, auditlog.webhookFormat.getContentType());
@@ -148,331 +165,354 @@ public class WebhookAuditLogTest {
         Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_request_remote_address"));
 	}
 
-//	@Test
-//	@SuppressWarnings("resource")
-//	public void invalidUrlTest() throws Exception {
-//
-//		String url = "faultyurl";
-//
-//		final Settings settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "slack")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.put("path.home", ".")
-//				.build();
-//
-//		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
-//		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-//		auditlog.store(msg);
-//		Assert.assertEquals(null, auditlog.url);
-//		Assert.assertEquals(null, auditlog.payload);
-//		Assert.assertEquals(null, auditlog.webhookUrl);
-//	}
-//
-//	@Test
-//	public void noServerRunningHttpTest() throws Exception {
-//		String url = "http://localhost:8080/endpoint";
-//
-//		Settings settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "slack")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.put("path.home", ".")
-//				.build();
-//
-//		// just make sure no exception is thrown
-//		WebhookSink auditlog = new WebhookSink(settings, null);
-//		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-//		auditlog.store(msg);
-//	}
-//
-//	@Test
-//	public void postGetHttpTest() throws Exception {
-//		TestHttpHandler handler = new TestHttpHandler();
-//
-//		server = ServerBootstrap.bootstrap()
-//				.setListenerPort(8080)
-//				.setServerInfo("Test/1.1")
-//				.registerHandler("*", handler)
-//				.create();
-//
-//		server.start();
-//
-//		String url = "http://localhost:8080/endpoint";
-//
-//		// SLACK
-//		Settings settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "slack")
-//				.put("path.home", ".")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.build();
-//
-//		WebhookSink auditlog = new WebhookSink(settings, null);
-//		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-//		auditlog.store(msg);
-//		Assert.assertTrue(handler.method.equals("POST"));
-//		Assert.assertTrue(handler.body != null);
-//		Assert.assertTrue(handler.body.startsWith("{\"text\":"));
-//		assertStringContainsAllKeysAndValues(handler.body);
-//
-//		// TEXT
-//		settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "texT")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.put("path.home", ".")
-//				.build();
-//
-//		auditlog = new WebhookSink(settings, null);
-//		auditlog.store(msg);
-//		Assert.assertTrue(handler.method.equals("POST"));
-//		Assert.assertTrue(handler.body != null);
-//		System.out.println(handler.body);
-//		Assert.assertFalse(handler.body.contains("{"));
-//		assertStringContainsAllKeysAndValues(handler.body);
-//
-//		// JSON
-//		settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "JSon")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.put("path.home", ".")
-//				.build();
-//
-//		auditlog = new WebhookSink(settings, null);
-//		auditlog.store(msg);
-//		Assert.assertTrue(handler.method.equals("POST"));
-//		Assert.assertTrue(handler.body != null);
-//		Assert.assertTrue(handler.body.contains("{"));
-//		assertStringContainsAllKeysAndValues(handler.body);
-//
-//		// URL POST
-//		settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_POST")
-//				.put("path.home", ".")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.build();
-//
-//		auditlog = new WebhookSink(settings, null);
-//		auditlog.store(msg);
-//		Assert.assertTrue(handler.method.equals("POST"));
-//		Assert.assertTrue(handler.body.equals(""));
-//		Assert.assertTrue(!handler.body.contains("{"));
-//		assertStringContainsAllKeysAndValues(URLDecoder.decode(handler.uri, StandardCharsets.UTF_8.displayName()));
-//
-//		// URL GET
-//		settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_GET")
-//				.put("path.home", ".")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.build();
-//
-//		auditlog = new WebhookSink(settings, null);
-//		auditlog.store(msg);
-//		Assert.assertTrue(handler.method.equals("GET"));
-//		Assert.assertTrue(handler.body.equals(""));
-//		Assert.assertTrue(!handler.body.contains("{"));
-//		assertStringContainsAllKeysAndValues(URLDecoder.decode(handler.uri, StandardCharsets.UTF_8.displayName()));
-//		server.shutdown(3l, TimeUnit.SECONDS);
-//	}
-//
-//	@Test
-//	public void httpsTestWithoutTLSServer() throws Exception {
-//
-//		TestHttpHandler handler = new TestHttpHandler();
-//
-//		server = ServerBootstrap.bootstrap()
-//				.setListenerPort(8081)
-//				.setServerInfo("Test/1.1")
-//				.registerHandler("*", handler)
-//				.create();
-//
-//		server.start();
-//
-//		String url = "https://localhost:8081/endpoint";
-//
-//		Settings settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "slack")
-//				.put("path.home", ".")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.build();
-//
-//		WebhookSink auditlog = new WebhookSink(settings, null);
-//		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-//		auditlog.store(msg);
-//		Assert.assertTrue(handler.method == null);
-//		Assert.assertTrue(handler.body == null);
-//		Assert.assertTrue(handler.uri == null);
-//		server.shutdown(3l, TimeUnit.SECONDS);
-//	}
-//
-//	@Test
-//	public void httpsTest() throws Exception {
-//
-//		TestHttpHandler handler = new TestHttpHandler();
-//
-//		server = ServerBootstrap.bootstrap()
-//				.setListenerPort(8082)
-//				.setServerInfo("Test/1.1")
-//				.setSslContext(createSSLContext())
-//				.registerHandler("*", handler)
-//				.create();
-//
-//		server.start();
-//
-//		String url = "https://localhost:8082/endpoint";
-//		
-//		// try with ssl verification on, must fail
-//		Settings settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "slack")
-//				.put("path.home", ".")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore_fail.jks"))
-//				.build();
-//
-//		WebhookSink auditlog = new WebhookSink(settings, null);
-//		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-//		auditlog.store(msg);
-//		Assert.assertTrue(handler.method, handler.method == null);
-//		Assert.assertTrue(handler.body, handler.body == null);
-//		Assert.assertTrue(handler.uri, handler.uri == null);
-//
-//		// wrong key for webhook.ssl.verify
-//		handler.reset();
-//		settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "slack")
-//				.put("searchguard.audit.config.webhook.ssl.verify", "foobar")
-//				.put("path.home", ".")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.build();
-//		try {
-//			auditlog = new WebhookSink(settings, null);
-//        } catch (Exception e) {
-//            Assert.assertTrue(e.getMessage().contains("Failed to parse value [foobar]"));
-//        }
-//
-//		// disable ssl verification, call must succeed now
-//		handler.reset();
-//		settings = Settings.builder()
-//				.put("searchguard.audit.config.webhook.url", url)
-//				.put("searchguard.audit.config.webhook.format", "jSoN")
-//				.put("searchguard.audit.config.webhook.ssl.verify", false)
-//				.put("path.home", ".")
-//                .put("searchguard.ssl.transport.truststore_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
-//				.build();
-//		auditlog = new WebhookSink(settings, null);
-//		auditlog.store(msg);
-//		Assert.assertTrue(handler.method.equals("POST"));
-//		Assert.assertTrue(handler.body != null);
-//		Assert.assertTrue(handler.body.contains("{"));
-//		assertStringContainsAllKeysAndValues(handler.body);
-//				
-//		server.shutdown(3l, TimeUnit.SECONDS);
-//	}
-//	
-//	@Test
-//    public void httpsTestPem() throws Exception {
-//
-//        TestHttpHandler handler = new TestHttpHandler();
-//
-//        server = ServerBootstrap.bootstrap()
-//                .setListenerPort(8083)
-//                .setServerInfo("Test/1.1")
-//                .setSslContext(createSSLContext())
-//                .registerHandler("*", handler)
-//                .create();
-//
-//        server.start();
-//        AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-//
-//        String url = "https://localhost:8083/endpoint";
-//        
-//        // try with ssl verification on, must fail
-//        Settings settings = Settings.builder()
-//                .put("searchguard.audit.config.webhook.url", url)
-//                .put("searchguard.audit.config.webhook.format", "slack")
-//                .put("path.home", ".")
-//                .put("searchguard.audit.config.webhook.ssl.pemtrustedcas_filepath",
-//                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/chain-ca.pem"))
-//                .build();
-//
-//        WebhookSink auditlog = new WebhookSink(settings, null);
-//        auditlog.store(msg);
-//        Assert.assertTrue(handler.method.equals("POST"));
-//        Assert.assertTrue(handler.body != null);
-//        Assert.assertTrue(handler.body.contains("{"));
-//        assertStringContainsAllKeysAndValues(handler.body);
-//
-//        // disable ssl verification, call must succeed now
-//        handler.reset();
-//        settings = Settings.builder()
-//                .put("searchguard.audit.config.webhook.url", url)
-//                .put("searchguard.audit.config.webhook.format", "jSoN")
-//                .put("searchguard.audit.config.webhook.ssl.verify", false)
-//                .put("path.home", ".")
-//                .build();
-//        auditlog = new WebhookSink(settings, null);
-//        auditlog.store(msg);
-//        Assert.assertTrue(handler.method.equals("POST"));
-//        Assert.assertTrue(handler.body != null);
-//        Assert.assertTrue(handler.body.contains("{"));
-//        assertStringContainsAllKeysAndValues(handler.body);
-//        
-//        // disable ssl verification, call must succeed now
-//        handler.reset();
-//        settings = Settings.builder()
-//                .put("searchguard.audit.config.webhook.url", url)
-//                .put("searchguard.audit.config.webhook.format", "jSoN")
-//                .put("searchguard.audit.config.webhook.ssl.verify", true)
-//                .put("path.home", ".")
-//                .build();
-//        auditlog = new WebhookSink(settings, null);
-//        auditlog.store(msg);
-//        Assert.assertNull(handler.method);
-//                
-//        server.shutdown(3l, TimeUnit.SECONDS);
-//    }
-//	
-//	// for TLS support on our in-memory server
-//	private SSLContext createSSLContext() {
-//		try {
-//			final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory
-//					.getDefaultAlgorithm());
-//			final KeyStore trustStore = KeyStore.getInstance("JKS");
-//			InputStream trustStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks").toFile());
-//			trustStore.load(trustStream, "changeit".toCharArray());
-//			tmf.init(trustStore);
-//
-//			final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());			
-//			final KeyStore keyStore = KeyStore.getInstance("JKS");
-//			InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/node-0-keystore.jks").toFile());
-//
-//			keyStore.load(keyStream, "changeit".toCharArray());
-//			kmf.init(keyStore, "changeit".toCharArray());
-//
-//			SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
-//			sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-//			return sslContext;
-//		} catch (final GeneralSecurityException | IOException exc) {
-//			throw new RuntimeException(exc);
-//		}
-//	}
+    
+    
+	@Test
+	public void invalidUrlTest() throws Exception {
+
+		String url = "faultyurl";
+
+		final Settings settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.put("path.home", ".")
+				.build();
+		LoggingSink fallback = new LoggingSink("test", null);
+		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), fallback);
+		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+		auditlog.store(msg);
+		Assert.assertEquals(null, auditlog.url);
+		Assert.assertEquals(null, auditlog.payload);
+		Assert.assertEquals(null, auditlog.webhookUrl);
+		// message must be stored in fallback
+		Assert.assertEquals(1, fallback.messages.size());
+		Assert.assertEquals(msg, fallback.messages.get(0));
+	}
+
+	@Test
+	public void noServerRunningHttpTest() throws Exception {
+		String url = "http://localhost:8080/endpoint";
+
+		Settings settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.put("path.home", ".")
+				.build();
+
+		LoggingSink fallback = new LoggingSink("test", null);
+		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+		auditlog.store(msg);
+		// can't connect, no server running ...
+		Assert.assertEquals("http://localhost:8080/endpoint", auditlog.webhookUrl);
+		// ... message must be stored in fallback
+		Assert.assertEquals(1, fallback.messages.size());
+		Assert.assertEquals(msg, fallback.messages.get(0));		
+	}
+	
+
+	@Test
+	public void postGetHttpTest() throws Exception {
+		TestHttpHandler handler = new TestHttpHandler();
+
+		server = ServerBootstrap.bootstrap()
+				.setListenerPort(8080)
+				.setServerInfo("Test/1.1")
+				.registerHandler("*", handler)
+				.create();
+
+		server.start();
+
+		String url = "http://localhost:8080/endpoint";
+
+		// SLACK
+		Settings settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.build();
+
+		LoggingSink fallback = new LoggingSink("test", null);
+		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+		auditlog.store(msg);
+		Assert.assertTrue(handler.method.equals("POST"));
+		Assert.assertTrue(handler.body != null);
+		Assert.assertTrue(handler.body.startsWith("{\"text\":"));
+		assertStringContainsAllKeysAndValues(handler.body);
+		// no message stored on fallback
+		Assert.assertEquals(0, fallback.messages.size());
+		handler.reset();
+
+		// TEXT
+		settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "texT")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.put("path.home", ".")
+				.build();
+
+		auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+		auditlog.store(msg);
+		Assert.assertTrue(handler.method.equals("POST"));
+		Assert.assertTrue(handler.body != null);
+		System.out.println(handler.body);
+		Assert.assertFalse(handler.body.contains("{"));
+		assertStringContainsAllKeysAndValues(handler.body);
+		handler.reset();
+		
+		// JSON
+		settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "JSon")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.put("path.home", ".")
+				.build();
+
+		auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+		auditlog.store(msg);
+		Assert.assertTrue(handler.method.equals("POST"));
+		Assert.assertTrue(handler.body != null);
+		Assert.assertTrue(handler.body.contains("{"));
+		assertStringContainsAllKeysAndValues(handler.body);
+		handler.reset();
+		
+		// URL POST
+		settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_POST")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.build();
+		
+		auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+		auditlog.store(msg);
+		Assert.assertTrue(handler.method.equals("POST"));
+		Assert.assertTrue(handler.body.equals(""));
+		Assert.assertTrue(!handler.body.contains("{"));
+		assertStringContainsAllKeysAndValues(URLDecoder.decode(handler.uri, StandardCharsets.UTF_8.displayName()));
+		handler.reset();
+		
+		// URL GET
+		settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_GET")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.build();
+
+		auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+		auditlog.store(msg);
+		Assert.assertTrue(handler.method.equals("GET"));
+		Assert.assertEquals(null, handler.body);
+		assertStringContainsAllKeysAndValues(URLDecoder.decode(handler.uri, StandardCharsets.UTF_8.displayName()));
+		server.shutdown(3l, TimeUnit.SECONDS);
+	}
+
+	@Test
+	public void httpsTestWithoutTLSServer() throws Exception {
+
+		TestHttpHandler handler = new TestHttpHandler();
+
+		server = ServerBootstrap.bootstrap()
+				.setListenerPort(8081)
+				.setServerInfo("Test/1.1")
+				.registerHandler("*", handler)
+				.create();
+
+		server.start();
+
+		String url = "https://localhost:8081/endpoint";
+
+		Settings settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.build();
+
+		LoggingSink fallback = new LoggingSink("test", null);
+		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+		auditlog.store(msg);
+		Assert.assertTrue(handler.method == null);
+		Assert.assertTrue(handler.body == null);
+		Assert.assertTrue(handler.uri == null);
+		// ... so message must be stored in fallback
+		Assert.assertEquals(1, fallback.messages.size());
+		Assert.assertEquals(msg, fallback.messages.get(0));
+		server.shutdown(3l, TimeUnit.SECONDS);
+	}
+
+	@Test
+	public void httpsTest() throws Exception {
+
+		TestHttpHandler handler = new TestHttpHandler();
+
+		server = ServerBootstrap.bootstrap()
+				.setListenerPort(8082)
+				.setServerInfo("Test/1.1")
+				.setSslContext(createSSLContext())
+				.registerHandler("*", handler)
+				.create();
+
+		server.start();
+
+		String url = "https://localhost:8082/endpoint";
+		
+		// try with ssl verification on, must fail
+		Settings settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore_fail.jks"))
+				.build();
+
+		LoggingSink fallback = new LoggingSink("test", null);
+		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+		auditlog.store(msg);
+		Assert.assertTrue(handler.method, handler.method == null);
+		Assert.assertTrue(handler.body, handler.body == null);
+		Assert.assertTrue(handler.uri, handler.uri == null);
+
+		// wrong key for webhook.ssl.verify
+		handler.reset();
+		settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
+				.put("searchguard.audit.config.webhook.ssl.verify", "foobar")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.build();
+		try {
+			auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+        } catch (Exception e) {
+            Assert.assertTrue(e.getMessage().contains("Failed to parse value [foobar]"));
+        }
+
+		// disable ssl verification, call must succeed now
+		handler.reset();
+		settings = Settings.builder()
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "jSoN")
+				.put("searchguard.audit.config.webhook.ssl.verify", false)
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
+				.build();
+
+		auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+		auditlog.store(msg);
+		Assert.assertTrue(handler.method.equals("POST"));
+		Assert.assertTrue(handler.body != null);
+		Assert.assertTrue(handler.body.contains("{"));
+		assertStringContainsAllKeysAndValues(handler.body);
+				
+		server.shutdown(3l, TimeUnit.SECONDS);
+	}
+
+
+	@Test
+    public void httpsTestPem() throws Exception {
+
+        TestHttpHandler handler = new TestHttpHandler();
+
+        server = ServerBootstrap.bootstrap()
+                .setListenerPort(8083)
+                .setServerInfo("Test/1.1")
+                .setSslContext(createSSLContext())
+                .registerHandler("*", handler)
+                .create();
+
+        server.start();
+        AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+
+        String url = "https://localhost:8083/endpoint";
+        
+        // try with ssl verification on, no trust ca, must fail
+        Settings settings = Settings.builder()
+                .put("searchguard.audit.config.webhook.url", url)
+                .put("searchguard.audit.config.webhook.format", "slack")
+                .put("path.home", ".")
+                .put("searchguard.audit.config.webhook.ssl.verify", true)                
+                .build();
+
+		LoggingSink fallback = new LoggingSink("test", null);
+		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+        auditlog.store(msg);
+        Assert.assertNull(handler.method);
+        Assert.assertNull(handler.body);
+        Assert.assertNull(handler.body);        
+		// message must be stored in fallback
+		Assert.assertEquals(1, fallback.messages.size());
+		Assert.assertEquals(msg, fallback.messages.get(0));
+        
+        // disable ssl verification, no ca, call must succeed 
+        handler.reset();
+        settings = Settings.builder()
+                .put("searchguard.audit.config.webhook.url", url)
+                .put("searchguard.audit.config.webhook.format", "jSoN")
+                .put("searchguard.audit.config.webhook.ssl.verify", false)
+                .put("path.home", ".")
+                .build();
+        auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+        auditlog.store(msg);
+        Assert.assertTrue(handler.method.equals("POST"));
+        Assert.assertTrue(handler.body != null);
+        Assert.assertTrue(handler.body.contains("{"));
+        assertStringContainsAllKeysAndValues(handler.body);
+        
+        // enable ssl verification, provide trust ca, call must succeed
+        handler.reset();
+        settings = Settings.builder()
+                .put("searchguard.audit.config.webhook.url", url)
+                .put("searchguard.audit.config.webhook.format", "jSoN")
+              .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore_fail.jks"))
+                
+                .put("searchguard.audit.config.webhook.ssl.verify", true)
+                .put("path.home", ".")
+                .build();
+        auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
+        auditlog.store(msg);
+        Assert.assertNull(handler.method);
+                
+        server.shutdown(3l, TimeUnit.SECONDS);
+    }
+	
+	// for TLS support on our in-memory server
+	private SSLContext createSSLContext() throws Exception {
+			final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory
+					.getDefaultAlgorithm());
+			final KeyStore trustStore = KeyStore.getInstance("JKS");
+			InputStream trustStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks").toFile());
+			trustStore.load(trustStream, "changeit".toCharArray());
+			tmf.init(trustStore);
+
+			final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());			
+			final KeyStore keyStore = KeyStore.getInstance("JKS");
+			InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/node-0-keystore.jks").toFile());
+
+			keyStore.load(keyStream, "changeit".toCharArray());
+			kmf.init(keyStore, "changeit".toCharArray());
+
+			SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+			sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+			return sslContext;
+	}
 
 	private void assertStringContainsAllKeysAndValues(String in) {
 	    System.out.println(in);

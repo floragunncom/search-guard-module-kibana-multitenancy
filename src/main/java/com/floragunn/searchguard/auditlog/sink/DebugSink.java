@@ -14,21 +14,23 @@
 
 package com.floragunn.searchguard.auditlog.sink;
 
+import java.io.IOException;
+
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
 public final class DebugSink extends AuditLogSink {
 
-    public DebugSink(String name) {
-        super(name, null, null);
+    public DebugSink(String name, AuditLogSink fallbackSink) {
+        super(name, null, null, fallbackSink);
     }
 
     public boolean isHandlingBackpressure() {
         return true;
     }
-
-    @Override
-    public void store(final AuditMessage msg) {
+    
+    public boolean doStore(final AuditMessage msg) {
         System.out.println("AUDIT_LOG: " + msg.toPrettyString());
+        return true;
     }
 
 }

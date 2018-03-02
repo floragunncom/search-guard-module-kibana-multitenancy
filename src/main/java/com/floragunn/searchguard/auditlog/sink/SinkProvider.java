@@ -12,6 +12,7 @@
  */
 package com.floragunn.searchguard.auditlog.sink;
 
+import java.lang.reflect.Constructor;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,6 +24,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.ConfigConstants;
 
@@ -36,6 +38,7 @@ public class SinkProvider {
 	private final Settings settings;
 	final Map<String, AuditLogSink> allSinks = new HashMap<>();
 	AuditLogSink defaultSink;
+	AuditLogSink fallbackSink;
 
 	public SinkProvider(final Settings settings, final Client clientProvider, ThreadPool threadPool, final Path configPath) {
 		this.settings = settings;
@@ -43,16 +46,7 @@ public class SinkProvider {
 		this.threadPool = threadPool;
 		this.configPath = configPath;
 
-		// create default sink
-		defaultSink = this.createSink("default", settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT), settings,
-				settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
-		if (defaultSink == null) {
-			log.error("Default endpoint could not be created, auditlog will not work properly. Using debug storage endpoint instead.");
-			defaultSink = new DebugSink("default");
-		}
-		allSinks.put("default", defaultSink);
-
-		// create other sinks
+		// create sinks
 		Map<String, Object> sinkSettingsMap = Utils.convertJsonToxToStructuredMap(settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS));
 
 		for (Entry<String, Object> sinkEntry : sinkSettingsMap.entrySet()) {
@@ -73,8 +67,21 @@ public class SinkProvider {
 			if (log.isDebugEnabled()) {
 				log.debug("sink '{}' created successfully.", sinkName);
 			}
-
 		}
+
+		// fallback sink, make sure we don't lose messages
+		fallbackSink = allSinks.remove("fallback");
+		if (fallbackSink == null) {
+			fallbackSink = new DebugSink("fallback", null);
+		}
+
+		// create default sink
+		defaultSink = this.createSink("default", settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT), settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
+		if (defaultSink == null) {
+			log.error("Default endpoint could not be created, auditlog will not work properly. Using debug storage endpoint instead.");
+			defaultSink = new DebugSink("default", fallbackSink);
+		}
+		allSinks.put("default", defaultSink);
 
 	}
 
@@ -106,44 +113,42 @@ public class SinkProvider {
 		if (type != null) {
 			switch (type.toLowerCase()) {
 			case "internal_elasticsearch":
-				sink = new InternalESSink(name, settings, sinkSettings, configPath, clientProvider, threadPool);
+				sink = new InternalESSink(name, settings, sinkSettings, configPath, clientProvider, threadPool, fallbackSink);
 				break;
 			case "external_elasticsearch":
 				try {
-					sink = new ExternalESSink(name, settings, sinkSettings, configPath);
+					sink = new ExternalESSink(name, settings, sinkSettings, configPath, fallbackSink);
 				} catch (Exception e) {
 					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to", e);
 				}
 				break;
 			case "webhook":
 				try {
-					sink = new WebhookSink(name, settings, sinkSettings, configPath);
+					sink = new WebhookSink(name, settings, sinkSettings, configPath, fallbackSink);
 				} catch (Exception e1) {
 					log.error("Audit logging unavailable: Unable to setup WebhookAuditLog due to", e1);
 				}
 				break;
 			case "debug":
-				sink = new DebugSink(name);
+				sink = new DebugSink(name, fallbackSink);
 				break;
 			case "log4j":
-				sink = new Log4JSink(name, settings, sinkSettings);
+				sink = new Log4JSink(name, settings, sinkSettings, fallbackSink);
 				break;
 			default:
 				try {
 					Class<?> delegateClass = Class.forName(type);
-
 					if (AuditLogSink.class.isAssignableFrom(delegateClass)) {
 						try {
-							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class, Settings.class, Settings.class, ThreadPool.class).newInstance(name,
-									settings, sinkSettings, threadPool);
+							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class, Settings.class, Path.class, Client.class, ThreadPool.class, AuditLogSink.class).newInstance(name, settings, sinkSettings, configPath,
+									clientProvider, threadPool, fallbackSink);
 						} catch (Throwable e) {
-							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class, Settings.class).newInstance(name, settings, sinkSettings);
+							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class, Settings.class, AuditLogSink.class).newInstance(name, settings, sinkSettings, fallbackSink);
 						}
 					} else {
 						log.error("Audit logging unavailable: '{}' is not a subclass of {}", type, AuditLogSink.class.getSimpleName());
 					}
-				} catch (Throwable e) { // we need really catch a Throwable
-										// here!
+				} catch (Throwable e) { // we need really catch a Throwable here!
 					log.error("Audit logging unavailable: Cannot instantiate object of class {} due to " + e, type);
 				}
 			}

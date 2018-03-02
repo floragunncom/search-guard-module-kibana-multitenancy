@@ -33,54 +33,52 @@ import com.floragunn.searchguard.support.HeaderHelper;
 
 public final class InternalESSink extends AuditLogSink {
 
-    private final Client clientProvider;
-    private final String index;
-    private final String type;
-    private DateTimeFormatter indexPattern;
-    private final ThreadPool threadPool;
-    
-    public InternalESSink(final String name, final Settings settings, final Settings sinkSettings, final Path configPath, final Client clientProvider, ThreadPool threadPool) {
-        super(name, settings, sinkSettings);
-        this.clientProvider = clientProvider;
+	private final Client clientProvider;
+	private final String index;
+	private final String type;
+	private DateTimeFormatter indexPattern;
+	private final ThreadPool threadPool;
 
-        this.index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX,"'sg6-auditlog-'YYYY.MM.dd");
-        this.type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE,"auditlog");
+	public InternalESSink(final String name, final Settings settings, final Settings sinkSettings, final Path configPath, final Client clientProvider, ThreadPool threadPool, AuditLogSink fallbackSink) {
+		super(name, settings, sinkSettings, fallbackSink);
+		this.clientProvider = clientProvider;
 
-        this.threadPool = threadPool;
-        try {
-            this.indexPattern = DateTimeFormat.forPattern(index);
-        } catch (IllegalArgumentException e) {
-            log.debug("Unable to parse index pattern due to {}. "
-                    + "If you have no date pattern configured you can safely ignore this message", e.getMessage());
-        }
-    }
+		this.index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX, "'sg6-auditlog-'YYYY.MM.dd");
+		this.type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE, "auditlog");
 
-    @Override
-    public void close() throws IOException {
+		this.threadPool = threadPool;
+		try {
+			this.indexPattern = DateTimeFormat.forPattern(index);
+		} catch (IllegalArgumentException e) {
+			log.debug("Unable to parse index pattern due to {}. " + "If you have no date pattern configured you can safely ignore this message", e.getMessage());
+		}
+	}
 
-    }
-    
-    @Override
-    public void store(final AuditMessage msg) {
-        
-        if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
-            if(log.isTraceEnabled()) {
-                log.trace("audit log of audit log will not be executed");
-            }
-            return;
-        }
+	@Override
+	public void close() throws IOException {
 
-        try(StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-            try {
-                final IndexRequestBuilder irb = clientProvider.prepareIndex(getExpandedIndexName(indexPattern, index), type)
-                        .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                        .setSource(msg.getAsMap());
-                threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-                irb.setTimeout(TimeValue.timeValueMinutes(1));
-                irb.execute().actionGet();
-            } catch (final Exception e) {
-                log.error("Unable to index audit log {} due to {}", msg, e.toString(), e);
-            }
-        }
-    }
+	}
+
+	public boolean doStore(final AuditMessage msg) {
+
+		if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
+			if (log.isTraceEnabled()) {
+				log.trace("audit log of audit log will not be executed");
+			}
+			return true;
+		}
+
+		try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+			try {
+				final IndexRequestBuilder irb = clientProvider.prepareIndex(getExpandedIndexName(indexPattern, index), type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.getAsMap());
+				threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+				irb.setTimeout(TimeValue.timeValueMinutes(1));
+				irb.execute().actionGet();
+				return true;
+			} catch (final Exception e) {
+				log.error("Unable to index audit log {} due to {}", msg, e.toString(), e);
+				return false;
+			}
+		}
+	}
 }

@@ -28,9 +28,9 @@ import org.apache.http.protocol.HttpRequestHandler;
 import org.apache.http.util.EntityUtils;
 
 public class TestHttpHandler implements HttpRequestHandler {
-	String method;
-	String uri;
-	String body;
+	public String method;
+	public String uri;
+	public String body;
 	
 	@Override
 	public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {

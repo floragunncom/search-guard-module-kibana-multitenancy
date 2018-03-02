@@ -55,8 +55,8 @@ public class WebhookSink extends AuditLogSink {
 	final boolean verifySSL;
 	final KeyStore effectiveTruststore;
 
-	public WebhookSink(final String name, final Settings settings, final Settings sinkConfig, final Path configPath) throws Exception {
-		super(name, settings, sinkConfig);
+	public WebhookSink(final String name, final Settings settings, final Settings sinkConfig, final Path configPath, AuditLogSink fallbackSink) throws Exception {
+		super(name, settings, sinkConfig, fallbackSink);
 		
 		final boolean pem = sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
                 || sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
@@ -65,7 +65,8 @@ public class WebhookSink extends AuditLogSink {
 		    X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, sinkConfig));
             
             if(trustCertificates == null) {
-                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, sinkConfig, configPath, false));
+            	String path = sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH);
+                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(path, ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_PEMTRUSTEDCAS_FILEPATH, settings, configPath, true));
             }
             
             effectiveTruststore = PemKeyReader.toTruststore("alw", trustCertificates);
@@ -115,28 +116,26 @@ public class WebhookSink extends AuditLogSink {
 		}
 	}
 
-	@Override
-	public void store(AuditMessage msg) {
+
+	public boolean doStore(AuditMessage msg) {
 		if (Strings.isEmpty(webhookUrl)) {
 			log.debug("Webhook URL is null");
-			return;
+			return false;
 		}
 		if (msg == null) {
 			log.debug("Message is null");
-			return;
+			return true;
 		}
 
 		switch (webhookFormat.method) {
 		case POST:
-			post(msg);
-			break;
+			return post(msg);
 		case GET:
-			get(msg);
-			break;
+			return get(msg);
 		default:
 			log.error("Http Method '{}' defined in WebhookFormat '{}' not implemented yet", webhookFormat.method.name(),
 					webhookFormat.name());
-			return;
+			return false;
 		}
 	}
 

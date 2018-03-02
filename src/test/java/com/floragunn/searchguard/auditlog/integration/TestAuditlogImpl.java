@@ -17,8 +17,6 @@ package com.floragunn.searchguard.auditlog.integration;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.elasticsearch.common.settings.Settings;
-
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 
@@ -27,14 +25,15 @@ public class TestAuditlogImpl extends AuditLogSink {
     public static List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
     public static StringBuffer sb = new StringBuffer();
     
-    public TestAuditlogImpl(String name, Settings settings, Settings sinkSettings) {
-        super(name, settings, sinkSettings);
+    public TestAuditlogImpl(String name, AuditLogSink fallbackSink) {
+        super(name, null, null, fallbackSink);
     }
 
-    @Override
-    public synchronized void store(AuditMessage msg) {
+    
+    public synchronized boolean  doStore(AuditMessage msg) {
         sb.append(msg.toPrettyString()+System.lineSeparator());
         messages.add(msg);
+        return true;
     }
     
     public static synchronized void clear() {

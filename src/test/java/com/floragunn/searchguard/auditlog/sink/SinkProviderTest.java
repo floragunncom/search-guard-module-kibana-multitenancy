@@ -56,10 +56,4 @@ public class SinkProviderTest {
 
 	}
 	
-	@Test
-	public void testFallbackSink() throws Exception {
-		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/sink/configuration_fallback.yml")).build();
-		SinkProvider provider = new SinkProvider(settings, null, null, null);
-
-	}
 }

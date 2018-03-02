@@ -31,7 +31,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
-import com.floragunn.searchguard.auditlog.sink.DebugSink;
 import com.floragunn.searchguard.auditlog.sink.SinkProvider;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -59,20 +58,30 @@ public class AuditMessageRouter {
 		// create sinks for categories/routes
 		Map<String, Object> routesConfiguration = Utils.convertJsonToxToStructuredMap(settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES));
 		for (Entry<String, Object> routesEntry : routesConfiguration.entrySet()) {
-			log.trace("Setting up routed for endpoint {}, configuraton is {}", routesEntry.getKey(), routesEntry.getValue());
+			log.trace("Setting up routes for endpoint {}, configuraton is {}", routesEntry.getKey(), routesEntry.getValue());
 			String categoryName = routesEntry.getKey();
 			try {
 				Category category = Category.valueOf(categoryName.toUpperCase());
 				// support duplicate definitions
 				List<AuditLogSink> sinksForCategory = categorySinks.get(category);
 				if (categorySinks.get(category) != null) {
-					log.warn("Duplicate routing configuration detected for category {}", category);
-				} else {
-					sinksForCategory = new LinkedList<>();
+					log.warn("Duplicate routing configuration detected for category {}, skipping.", category);
+					continue;
+				} 
+				sinksForCategory = createSinksForCategory(category, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES + "." + categoryName));
+				if (sinksForCategory.size() > 0) {
+					hasMultipleEndpoints = true;
 					categorySinks.put(category, sinksForCategory);
+					if(log.isTraceEnabled()) {
+						log.debug("Created {} endpoints for category {}", sinksForCategory.size(), category );
+					}					
+				} else {
+					if(log.isDebugEnabled()) {
+						log.debug("No valid endpoints found for category {}, category will not be added to route configuration", category );
+					}										
 				}
-				createSinksForCategory(category, sinksForCategory, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES + "." + categoryName));
-				hasMultipleEndpoints = true;
+
+				
 			} catch (Exception e ) {
 				log.error("Invalid category '{}' found in routing configuration. Must be one of: {}", categoryName, Category.values());
 			}
@@ -80,28 +89,22 @@ public class AuditMessageRouter {
 		
 	}
 
-	private void createSinksForCategory(Category category, List<AuditLogSink> sinksForCategory, Settings configuration) {
-		// check if we need to include the default sink
-		if (configuration.getAsBoolean("include_default", false)) {
-			if (log.isDebugEnabled()) {
-				log.debug("Will include default sinks for category {}", category);	
-			}			
-			sinksForCategory.add(defaultSink);
-		}
-		// add all other sinks, create on the fly
+	private List<AuditLogSink> createSinksForCategory(Category category, Settings configuration) {
+		List<AuditLogSink> sinksForCategory = new LinkedList<>();
 		List<String> sinks = configuration.getAsList("endpoints");
 		if (sinks == null || sinks.size() == 0) {
 			log.error("No endpoints configured for category {}", category);
-			return;
+			return sinksForCategory;
 		}
 		for (String sinkName : sinks) {
 			AuditLogSink sink = sinkProvider.getSink(sinkName);
-			if (sink != null) {
+			if (sink != null && !sinksForCategory.contains(sink)) {
 				sinksForCategory.add(sink);	
 			} else {
 				log.error("Configured endpoint '{}' not available", sinkName);
 			}
-		}		
+		}
+		return sinksForCategory;
 	}
 
 	public void route(final AuditMessage msg) {

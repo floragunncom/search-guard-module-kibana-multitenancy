@@ -33,7 +33,7 @@ public abstract class AuditLogSink {
     private final String name;
     
     protected AuditLogSink(String name, Settings settings, Settings sinkConfiguration) {
-        this.name = name;
+        this.name = name.toLowerCase();
     	this.settings = settings;
         this.sinkConfiguration = sinkConfiguration;
     }
@@ -62,4 +62,31 @@ public abstract class AuditLogSink {
     public String toString() {    	
     	return ("AudtLogSink: Name: " + name+", type: " + this.getClass().getSimpleName());
     }
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		AuditLogSink other = (AuditLogSink) obj;
+		if (name == null) {
+			if (other.name != null)
+				return false;
+		} else if (!name.equals(other.name))
+			return false;
+		return true;
+	}
+    
+
 }

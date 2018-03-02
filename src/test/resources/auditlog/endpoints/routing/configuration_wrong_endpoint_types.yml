@@ -1,8 +1,9 @@
 searchguard:
   audit:
+    type: xxxxxxxelasticsearch
     endpoints:
       endpoint1:
-        type: internal_elasticsearch
+        type: interrrrnal_elasticsearch
       endpoint2:
         type: external_elasticsearch
         config:
@@ -16,9 +17,15 @@ searchguard:
       endpoint3:
         type: debug
     routes:
-      MISSING_PRIVILEGEs:
+      MISSInG_PRIVILEGEs:
         endpoints:
+          - endpoint1
+          - endpoint2
+          - endpoint3
           - default
       COMPLIANCE_DOC_READ:
         endpoints:
-          - endpoint3
+          - nothinghere
+      COMPLIANCE_DOC_WRITE:
+        endpoints:
+          - default

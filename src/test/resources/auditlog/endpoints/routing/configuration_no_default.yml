@@ -9,10 +9,11 @@ searchguard:
         type: debug
     routes:
       MISSING_PRIVILEGEs:
-        include_default: true
         endpoints:
+          - default
           - endpoint1
           - endpoint2
       COMPLIANCE_DOC_READ:
         endpoints:
           - endpoint3
+          - default

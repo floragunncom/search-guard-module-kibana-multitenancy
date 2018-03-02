@@ -16,7 +16,7 @@ public class SinkProviderTest {
 		SinkProvider provider = new SinkProvider(settings, null, null, null);
 		
 		// make sure we have a debug sink as fallback
-		Assert.assertEquals(DebugSink.class, provider.fallbackSink );
+		Assert.assertEquals(DebugSink.class, provider.fallbackSink.getClass() );
 		
 		AuditLogSink sink = provider.getSink("DefaULT");
 		Assert.assertEquals(sink.getClass(), DebugSink.class);

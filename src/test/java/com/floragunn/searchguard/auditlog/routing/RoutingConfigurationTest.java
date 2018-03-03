@@ -76,10 +76,10 @@ public class RoutingConfigurationTest {
 		Assert.assertEquals(1, sinks.size());
 		Assert.assertEquals("default", sinks.get(0).getName());
 		Assert.assertEquals(InternalESSink.class, sinks.get(0).getClass());
-		// no valid endpoints for category, should not be present in router
+		// no valid end points for category, must use default
 		sinks = router.categorySinks.get(AuditMessage.Category.COMPLIANCE_DOC_READ);
-		Assert.assertEquals(null, sinks);
-
+		Assert.assertEquals("default", sinks.get(0).getName());
+		Assert.assertEquals(InternalESSink.class, sinks.get(0).getClass());
 	}
 
 	@Test
@@ -113,8 +113,14 @@ public class RoutingConfigurationTest {
 		Assert.assertEquals("endpoint1", sinks.get(0).getName());
 		Assert.assertEquals(InternalESSink.class, sinks.get(0).getClass());
 
-		// bad headers has not valid endpoint
-		Assert.assertEquals(null, router.categorySinks.get(AuditMessage.Category.BAD_HEADERS));
+		// bad headers has no valid endpoint, so we use default
+		Assert.assertEquals("default", router.categorySinks.get(AuditMessage.Category.BAD_HEADERS).get(0).getName());
+		Assert.assertEquals(DebugSink.class, router.categorySinks.get(AuditMessage.Category.BAD_HEADERS).get(0).getClass());
+
+		// failed login has no endpoint configuration, so we use default
+		Assert.assertEquals("default", router.categorySinks.get(AuditMessage.Category.FAILED_LOGIN).get(0).getName());
+		Assert.assertEquals(DebugSink.class, router.categorySinks.get(AuditMessage.Category.FAILED_LOGIN).get(0).getClass());
+
 	}
 
 	@Test
@@ -139,8 +145,9 @@ public class RoutingConfigurationTest {
 		Assert.assertEquals("default", sinks.get(0).getName());
 		Assert.assertEquals(DebugSink.class, sinks.get(0).getClass());
 
-		// no valid endpoints for category, should not be present in router
+		// no valid endpoints for category, must fallback to default
 		sinks = router.categorySinks.get(AuditMessage.Category.COMPLIANCE_DOC_READ);
-		Assert.assertEquals(null, sinks);
+		Assert.assertEquals("default", sinks.get(0).getName());
+		Assert.assertEquals(DebugSink.class, sinks.get(0).getClass());
 	}
 }

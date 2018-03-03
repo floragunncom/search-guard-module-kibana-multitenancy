@@ -3,6 +3,8 @@ package com.floragunn.searchguard.auditlog.sink;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.elasticsearch.common.settings.Settings;
+
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
 public class LoggingSink extends AuditLogSink {
@@ -10,7 +12,7 @@ public class LoggingSink extends AuditLogSink {
 	public List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
     public StringBuffer sb = new StringBuffer();
     
-    public LoggingSink(String name, AuditLogSink fallbackSink) {
+    public LoggingSink(String name, Settings settings, Settings sinkSetting, AuditLogSink fallbackSink) {
         super(name, null, null, fallbackSink);
     }
 

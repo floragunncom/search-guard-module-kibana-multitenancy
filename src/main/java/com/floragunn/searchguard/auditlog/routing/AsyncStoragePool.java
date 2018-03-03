@@ -67,10 +67,10 @@ public class AsyncStoragePool {
 			});
 		} catch (Exception ex) {
 			log.error("Could not submit audit message {} to thread pool for delegate '{}' due to '{}'", message,
-					sink.getClass().getSimpleName(), ex.getMessage(), ex);
-
-			// Fallback 
-
+					sink.getClass().getSimpleName(), ex.getMessage());
+			if(sink.getFallbackSink() != null) {
+				sink.getFallbackSink().store(message);
+			}
 		}
 	}
 

@@ -295,23 +295,31 @@ public final class AuditMessage {
         }
     }
 
-    public void addRestHeaders(Map<String,List<String>> headers) {
+    public void addRestHeaders(Map<String,List<String>> headers, boolean excludeSensitiveHeaders) {
         if(headers != null && !headers.isEmpty()) {
-            final Map<String, List<String>> headersClone = new HashMap<String, List<String>>(headers)
-                    .entrySet().stream()
-                    .filter(map -> !map.getKey().equalsIgnoreCase(AUTHORIZATION_HEADER))
-                    .collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
-            auditInfo.put(REST_REQUEST_HEADERS, headersClone);
+            if(excludeSensitiveHeaders) {
+                final Map<String, List<String>> headersClone = new HashMap<String, List<String>>(headers)
+                        .entrySet().stream()
+                        .filter(map -> !map.getKey().equalsIgnoreCase(AUTHORIZATION_HEADER))
+                        .collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
+                auditInfo.put(REST_REQUEST_HEADERS, headersClone);
+            } else {
+                auditInfo.put(REST_REQUEST_HEADERS, new HashMap<String, List<String>>(headers));
+            }
         }
     }
 
-    public void addTransportHeaders(Map<String,String> headers) {
+    public void addTransportHeaders(Map<String,String> headers, boolean excludeSensitiveHeaders) {
         if(headers != null && !headers.isEmpty()) {
-            final Map<String,String> headersClone = new HashMap<String,String>(headers)
-                    .entrySet().stream()
-                    .filter(map -> !map.getKey().equalsIgnoreCase(AUTHORIZATION_HEADER))
-                    .collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
-            auditInfo.put(TRANSPORT_REQUEST_HEADERS, headersClone);
+            if(excludeSensitiveHeaders) {
+                final Map<String,String> headersClone = new HashMap<String,String>(headers)
+                        .entrySet().stream()
+                        .filter(map -> !map.getKey().equalsIgnoreCase(AUTHORIZATION_HEADER))
+                        .collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
+                auditInfo.put(TRANSPORT_REQUEST_HEADERS, headersClone);
+            } else {
+                auditInfo.put(TRANSPORT_REQUEST_HEADERS, new HashMap<String,String>(headers));
+            }
         }
     }
 

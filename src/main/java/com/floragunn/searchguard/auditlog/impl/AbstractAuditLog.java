@@ -93,6 +93,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             Arrays.asList(new String[]{Category.AUTHENTICATED.toString(), Category.GRANTED_PRIVILEGES.toString()});
     private final List<String> defaultIgnoredUsers =
             Arrays.asList(new String[]{"kibanaserver"});
+    private final boolean excludeSensitiveHeaders;
 
     private final String searchguardIndex;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -191,6 +192,8 @@ public abstract class AbstractAuditLog implements AuditLog {
                 log.error("Unkown category {}, please check searchguard.audit.config.disabled_categories settings", event);
             }
         }
+        
+        this.excludeSensitiveHeaders = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_EXCLUDE_SENSITIVE_HEADERS, true);
     }
 
     @Override
@@ -202,7 +205,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.FAILED_LOGIN, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.FAILED_LOGIN, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, null);
 
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -226,7 +229,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         if(request != null) {
             msg.addPath(request.path());
-            msg.addRestHeaders(request.getHeaders());
+            msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
             msg.addRestParams(request.params());
         }
 
@@ -245,7 +248,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.AUTHENTICATED, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser,remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.AUTHENTICATED, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser,remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, null);
 
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -268,7 +271,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         if(request != null) {
             msg.addPath(request.path());
-            msg.addRestHeaders(request.getHeaders());
+            msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
             msg.addRestParams(request.params());
         }
 
@@ -292,7 +295,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         if(request != null) {
             msg.addPath(request.path());
-            msg.addRestHeaders(request.getHeaders());
+            msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
             msg.addRestParams(request.params());
         }
 
@@ -309,7 +312,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.MISSING_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.MISSING_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, null);
 
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -325,7 +328,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.GRANTED_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.GRANTED_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, null);
 
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -340,7 +343,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.BAD_HEADERS, getOrigin(), action, null, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.BAD_HEADERS, getOrigin(), action, null, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, null);
 
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -362,7 +365,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         if(request != null) {
             msg.addPath(request.path());
-            msg.addRestHeaders(request.getHeaders());
+            msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
             msg.addRestParams(request.params());
         }
 
@@ -379,7 +382,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SG_INDEX_ATTEMPT, getOrigin(), action, null, getUser(), false, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SG_INDEX_ATTEMPT, getOrigin(), action, null, getUser(), false, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, null);
 
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -395,7 +398,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         final TransportAddress remoteAddress = getRemoteAddress();
         final List<AuditMessage> msgs = RequestResolver.resolve(Category.SSL_EXCEPTION, getOrigin(), action, null, getUser(), false, null, remoteAddress, request,
-                getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, t);
+                getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, t);
 
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -418,7 +421,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         if(request != null) {
             msg.addPath(request.path());
-            msg.addRestHeaders(request.getHeaders());
+            msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
             msg.addRestParams(request.params());
         }
         msg.addException(t);

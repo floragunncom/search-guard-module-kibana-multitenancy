@@ -48,8 +48,6 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.elasticsearch.index.reindex.ReindexRequest;
@@ -82,6 +80,7 @@ public final class RequestResolver {
             final boolean resolveIndices, 
             final boolean resolveBulk,
             final String searchguardIndex,
+            final boolean excludeSensitiveHeaders,
             final Throwable exception)  {
         
         if(resolveBulk && request instanceof BulkShardRequest) { 
@@ -108,6 +107,7 @@ public final class RequestResolver {
                         logRequestBody, 
                         resolveIndices,
                         searchguardIndex,
+                        excludeSensitiveHeaders,
                         exception);
                  msg.addShardId(((BulkShardRequest) request).shardId());
                 
@@ -145,6 +145,7 @@ public final class RequestResolver {
                 logRequestBody, 
                 resolveIndices,
                 searchguardIndex,
+                excludeSensitiveHeaders,
                 exception));
     }
     
@@ -166,6 +167,7 @@ public final class RequestResolver {
             final boolean logRequestBody, 
             final boolean resolveIndices,
             final String searchguardIndex,
+            final boolean excludeSensitiveHeaders,
             final Throwable exception)  {
 
         final AuditMessage msg = new AuditMessage(category, cs, origin, Origin.TRANSPORT);
@@ -184,7 +186,7 @@ public final class RequestResolver {
         
         msg.addException(exception);
         msg.addPrivilege(priv);
-        msg.addTransportHeaders(headers);
+        msg.addTransportHeaders(headers, excludeSensitiveHeaders);
         
         if(task != null) {
             msg.addTaskId(task.getId());

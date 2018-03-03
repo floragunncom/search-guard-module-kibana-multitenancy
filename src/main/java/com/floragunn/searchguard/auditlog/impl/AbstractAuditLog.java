@@ -14,8 +14,8 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessController;
@@ -40,7 +40,9 @@ import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.Engine.Delete;
@@ -64,10 +66,10 @@ import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
-import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
+import com.google.common.io.BaseEncoding;
 
 public abstract class AbstractAuditLog implements AuditLog {
 
@@ -432,14 +434,16 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logDocumentRead(String index, String id, Map<String, String> fieldNameValues, ComplianceConfig complianceConfig) {
 
+        Category category = searchguardIndex.equals(index)?Category.COMPLIANCE_INTERNAL_CONFIG_READ:Category.COMPLIANCE_DOC_READ;
+        
         String effectiveUser = getUser();
 
-        if(!checkComplianceFilter(Category.COMPLIANCE_DOC_READ, effectiveUser)) {
+        if(!checkComplianceFilter(category, effectiveUser)) {
             return;
         }
 
         if(fieldNameValues != null && !fieldNameValues.isEmpty()) {
-            AuditMessage msg = new AuditMessage(Category.COMPLIANCE_DOC_READ, clusterService, getOrigin(), null);
+            AuditMessage msg = new AuditMessage(category, clusterService, getOrigin(), null);
             TransportAddress remoteAddress = getRemoteAddress();
             msg.addRemoteAddress(remoteAddress);
             msg.addEffectiveUser(effectiveUser);
@@ -451,7 +455,12 @@ public abstract class AbstractAuditLog implements AuditLog {
                 if(complianceConfig.logMetadataOnly()) {
                     msg.addSource(mapper.writeValueAsString(fieldNameValues.keySet()));
                 } else {
-                    msg.addSource(mapper.writeValueAsString(fieldNameValues));
+                    if(searchguardIndex.equals(index)) {
+                        msg.addSource(mapper.writeValueAsString(fieldNameValues.entrySet().stream()
+                                .collect(Collectors.toMap(entry -> entry.getKey(), entry -> new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)))));
+                    } else {
+                        msg.addSource(mapper.writeValueAsString(fieldNameValues));
+                    }
                 }
             } catch (JsonProcessingException e) {
                 log.error("Unable to generate request body for {} and {}",msg.toPrettyString(),fieldNameValues, e);
@@ -465,13 +474,15 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logDocumentWritten(ShardId shardId, GetResult originalIndex, GetResult currentGet, Index currentIndex, IndexResult result, ComplianceConfig complianceConfig) {
 
+        Category category = searchguardIndex.equals(shardId.getIndexName())?Category.COMPLIANCE_INTERNAL_CONFIG_WRITE:Category.COMPLIANCE_DOC_WRITE;
+
         String effectiveUser = getUser();
 
-        if(!checkComplianceFilter(Category.COMPLIANCE_DOC_WRITE, effectiveUser)) {
+        if(!checkComplianceFilter(category, effectiveUser)) {
             return;
         }
 
-        AuditMessage msg = new AuditMessage(Category.COMPLIANCE_DOC_WRITE, clusterService, getOrigin(), null);
+        AuditMessage msg = new AuditMessage(category, clusterService, getOrigin(), null);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
@@ -498,15 +509,55 @@ public abstract class AbstractAuditLog implements AuditLog {
 
             if(originalIndex != null && originalIndex.isExists() && originalIndex.internalSourceRef() != null) {
                 try {
-                    final String originalSource = XContentHelper.convertToJson(originalIndex.internalSourceRef(), false, XContentType.JSON);
-                    final String currentSource =  XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
+                    String originalSource = null;
+                    String currentSource = null;
+                    if (searchguardIndex.equals(shardId.getIndexName())) {
+                        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, originalIndex.internalSourceRef(), XContentType.JSON)) {
+                            Object base64 = parser.map().values().iterator().next();
+                            if(base64 instanceof String) {
+                                originalSource = (new String(BaseEncoding.base64().decode((String) base64)));
+                             } else {
+                                 originalSource = XContentHelper.convertToJson(originalIndex.internalSourceRef(), false, XContentType.JSON);
+                            }
+                         } catch (Exception e) {
+                             log.error(e);
+                         }
+                        
+                        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, currentIndex.source(), XContentType.JSON)) {
+                            Object base64 = parser.map().values().iterator().next();
+                            if(base64 instanceof String) {
+                                currentSource = (new String(BaseEncoding.base64().decode((String) base64)));
+                             } else {
+                                currentSource = XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
+                            }
+                         } catch (Exception e) {
+                             log.error(e);
+                         }
+                    } else {
+                        originalSource = XContentHelper.convertToJson(originalIndex.internalSourceRef(), false, XContentType.JSON);
+                        currentSource = XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
+                    }
                     final JsonNode diffnode = JsonDiff.asJson(mapper.readTree(originalSource), mapper.readTree(currentSource));
                     msg.addComplianceWriteDiffSource(diffnode.size() == 0?"":diffnode.toString());
-                } catch (IOException e) {
+                } catch (Exception e) {
                     log.error("Unable to generate diff for {}",msg.toPrettyString(),e);
                 }
             } else if (!complianceConfig.logDiffsOnlyForWrite()){
-                msg.addBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+                if(searchguardIndex.equals(shardId.getIndexName())) {
+                    try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, currentIndex.source(), XContentType.JSON)) {
+                       Object base64 = parser.map().values().iterator().next();
+                       if(base64 instanceof String) {
+                           msg.addSource(new String(BaseEncoding.base64().decode((String) base64)));
+                        } else {
+                           msg.addBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+                       }
+                    } catch (Exception e) {
+                        log.error(e);
+                    }
+                } else {
+                    msg.addBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+                }
+                
             }
         }
         save(msg);

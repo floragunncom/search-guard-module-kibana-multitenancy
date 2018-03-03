@@ -1,0 +1,15 @@
+sg_all_access:
+  cluster:
+    - '*'
+  indices:
+    '*':
+      '*':  
+        - READ
+        
+sg_picard:
+  cluster:
+    - '**'
+  indices:
+    'pica*':
+      '*':  
+        - READ

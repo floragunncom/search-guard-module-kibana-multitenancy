@@ -34,8 +34,8 @@ import com.floragunn.searchguard.support.HeaderHelper;
 public final class InternalESSink extends AuditLogSink {
 
 	private final Client clientProvider;
-	private final String index;
-	private final String type;
+	final String index;
+	final String type;
 	private DateTimeFormatter indexPattern;
 	private final ThreadPool threadPool;
 
@@ -43,8 +43,8 @@ public final class InternalESSink extends AuditLogSink {
 		super(name, settings, sinkSettings, fallbackSink);
 		this.clientProvider = clientProvider;
 
-		this.index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX, "'sg6-auditlog-'YYYY.MM.dd");
-		this.type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE, "auditlog");
+		this.index = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX, "'sg6-auditlog-'YYYY.MM.dd");
+		this.type = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE, "auditlog");
 
 		this.threadPool = threadPool;
 		try {

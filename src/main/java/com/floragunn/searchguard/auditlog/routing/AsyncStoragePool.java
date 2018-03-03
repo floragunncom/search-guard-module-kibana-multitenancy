@@ -33,13 +33,16 @@ public class AsyncStoragePool {
 	private final static int DEFAULT_THREAD_POOL_SIZE = 10;
 	private final static int DEFAULT_THREAD_POOL_MAX_QUEUE_LEN = 100 * 1000;
 
-	// package private for unit tests :(
+	// package private for unit tests
 	final ExecutorService pool;
-
+	
+	int threadPoolSize;
+	int threadPoolMaxQueueLen;
+	
 	public AsyncStoragePool(final Settings settings) {
-		int threadPoolSize = settings
+		this.threadPoolSize = settings
 				.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_SIZE, DEFAULT_THREAD_POOL_SIZE).intValue();
-		int threadPoolMaxQueueLen = settings
+		this.threadPoolMaxQueueLen = settings
 				.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_MAX_QUEUE_LEN, DEFAULT_THREAD_POOL_MAX_QUEUE_LEN)
 				.intValue();
 

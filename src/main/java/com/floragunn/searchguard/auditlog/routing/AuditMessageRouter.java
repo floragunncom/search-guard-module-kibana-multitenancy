@@ -55,38 +55,48 @@ public class AuditMessageRouter {
 			log.warn("No default storage available, audit log may not work properly. Please check configuration. Using debug storage type instead.");			
 		}
 		
-		// create sinks for categories/routes
+		// create sinks for all categories. Only do that if we have any extended setting, otherwise there is just the default category
 		Map<String, Object> routesConfiguration = Utils.convertJsonToxToStructuredMap(settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES));
-		for (Entry<String, Object> routesEntry : routesConfiguration.entrySet()) {
-			log.trace("Setting up routes for endpoint {}, configuraton is {}", routesEntry.getKey(), routesEntry.getValue());
-			String categoryName = routesEntry.getKey();
-			try {
-				Category category = Category.valueOf(categoryName.toUpperCase());
-				// support duplicate definitions
-				List<AuditLogSink> sinksForCategory = categorySinks.get(category);
-				if (categorySinks.get(category) != null) {
-					log.warn("Duplicate routing configuration detected for category {}, skipping.", category);
-					continue;
-				} 
-				sinksForCategory = createSinksForCategory(category, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES + "." + categoryName));
-				if (sinksForCategory.size() > 0) {
-					hasMultipleEndpoints = true;
-					categorySinks.put(category, sinksForCategory);
-					if(log.isTraceEnabled()) {
-						log.debug("Created {} endpoints for category {}", sinksForCategory.size(), category );
-					}					
-				} else {
-					if(log.isDebugEnabled()) {
-						log.debug("No valid endpoints found for category {}, category will not be added to route configuration", category );
-					}										
+		if (!routesConfiguration.isEmpty()) {
+			hasMultipleEndpoints = true;
+			// first set up all configured routes. We do it this way so category names are case insensitive
+			// and we can warn if a non-existing category has been detected.
+			for (Entry<String, Object> routesEntry : routesConfiguration.entrySet()) {
+				log.trace("Setting up routes for endpoint {}, configuraton is {}", routesEntry.getKey(), routesEntry.getValue());
+				String categoryName = routesEntry.getKey();
+				try {
+					Category category = Category.valueOf(categoryName.toUpperCase());
+					// warn for duplicate definitions
+					List<AuditLogSink> sinksForCategory = categorySinks.get(category);
+					if (categorySinks.get(category) != null) {
+						log.warn("Duplicate routing configuration detected for category {}, skipping.", category);
+						continue;
+					} 
+					sinksForCategory = createSinksForCategory(category, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES + "." + categoryName));
+					if (sinksForCategory.size() > 0) {
+						categorySinks.put(category, sinksForCategory);
+						if(log.isTraceEnabled()) {
+							log.debug("Created {} endpoints for category {}", sinksForCategory.size(), category );
+						}					
+					} else {
+						if(log.isDebugEnabled()) {
+							log.debug("No valid endpoints found for category {} adding only default.", category );
+						}										
+					}
+				} catch (Exception e ) {
+					log.error("Invalid category '{}' found in routing configuration. Must be one of: {}", categoryName, Category.values());
 				}
-
-				
-			} catch (Exception e ) {
-				log.error("Invalid category '{}' found in routing configuration. Must be one of: {}", categoryName, Category.values());
+			}		
+			// for all non-configured categories we automatically set up the default endpoint
+			for(Category category : Category.values()) {
+				if (!categorySinks.containsKey(category)) {
+					if (log.isDebugEnabled()) {
+						log.debug("No endpoint configured for category {}, adding default endpoint", category);
+					}
+					categorySinks.put(category, Collections.singletonList(defaultSink));
+				}
 			}
 		}
-		
 	}
 
 	private List<AuditLogSink> createSinksForCategory(Category category, Settings configuration) {
@@ -111,7 +121,7 @@ public class AuditMessageRouter {
 		if (!hasMultipleEndpoints) {
 			store(defaultSink, msg);
 		} else {
-			for (AuditLogSink sink : getSinksFor(msg)) {
+			for (AuditLogSink sink : categorySinks.get(msg.getCategory())) {
 				store(sink, msg);
 			}			
 		}
@@ -129,15 +139,6 @@ public class AuditMessageRouter {
 				log.trace("will store on sink {} asynchronously", sink.getClass().getSimpleName());
 			}
 		}		
-	}
-
-	@SuppressWarnings("unchecked")
-	protected List<AuditLogSink> getSinksFor(AuditMessage message) {
-		Category category = message.getCategory();
-		if (categorySinks.containsKey(message.getCategory())) {
-			return categorySinks.get(category);
-		}
-		return Collections.EMPTY_LIST;
 	}
 
 	public void close() {

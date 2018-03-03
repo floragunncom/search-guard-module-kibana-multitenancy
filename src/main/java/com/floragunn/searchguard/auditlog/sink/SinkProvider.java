@@ -12,7 +12,6 @@
  */
 package com.floragunn.searchguard.auditlog.sink;
 
-import java.lang.reflect.Constructor;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +23,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.ConfigConstants;
 
@@ -46,7 +44,25 @@ public class SinkProvider {
 		this.threadPool = threadPool;
 		this.configPath = configPath;
 
-		// create sinks
+		// fall back sink, make sure we don't lose messages
+		Settings fallbackSinkSettings = settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_FALLBACK);
+		if(!fallbackSinkSettings.isEmpty()) {
+			this.fallbackSink = createSink("fallback", fallbackSinkSettings.get("type"), settings, fallbackSinkSettings.getAsSettings("config"));
+		}
+		// make sure we always have a fallback to write to
+		if (this.fallbackSink == null) {
+			this.fallbackSink = new DebugSink("fallback", null);
+		}
+
+		// create default sink
+		defaultSink = this.createSink("default", settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT), settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
+		if (defaultSink == null) {
+			log.error("Default endpoint could not be created, auditlog will not work properly. Using debug storage endpoint instead.");
+			defaultSink = new DebugSink("default", fallbackSink);
+		}
+		allSinks.put("default", defaultSink);
+		
+		// create all other sinks
 		Map<String, Object> sinkSettingsMap = Utils.convertJsonToxToStructuredMap(settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS));
 
 		for (Entry<String, Object> sinkEntry : sinkSettingsMap.entrySet()) {
@@ -68,21 +84,6 @@ public class SinkProvider {
 				log.debug("sink '{}' created successfully.", sinkName);
 			}
 		}
-
-		// fallback sink, make sure we don't lose messages
-		fallbackSink = allSinks.remove("fallback");
-		if (fallbackSink == null) {
-			fallbackSink = new DebugSink("fallback", null);
-		}
-
-		// create default sink
-		defaultSink = this.createSink("default", settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT), settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
-		if (defaultSink == null) {
-			log.error("Default endpoint could not be created, auditlog will not work properly. Using debug storage endpoint instead.");
-			defaultSink = new DebugSink("default", fallbackSink);
-		}
-		allSinks.put("default", defaultSink);
-
 	}
 
 	public AuditLogSink getSink(String sinkName) {

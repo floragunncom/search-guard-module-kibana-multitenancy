@@ -34,6 +34,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.helper.LoggingSink;
 import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.auditlog.helper.TestHttpHandler;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
@@ -68,7 +69,7 @@ public class WebhookAuditLogTest {
 		        .put("searchguard.ssl.transport.truststore_filepath",
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 		        .build();
-		LoggingSink fallback = new LoggingSink("test", null);
+		LoggingSink fallback = new LoggingSink("test", null, null, null);
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), fallback);
 		auditlog.store(msg);
 		// Webhook sink has failed ...
@@ -179,7 +180,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.put("path.home", ".")
 				.build();
-		LoggingSink fallback = new LoggingSink("test", null);
+		LoggingSink fallback =  new LoggingSink("test", null, null, null);;
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), fallback);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
@@ -203,7 +204,7 @@ public class WebhookAuditLogTest {
 				.put("path.home", ".")
 				.build();
 
-		LoggingSink fallback = new LoggingSink("test", null);
+		LoggingSink fallback =  new LoggingSink("test", null, null, null);;
 		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
@@ -238,7 +239,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.build();
 
-		LoggingSink fallback = new LoggingSink("test", null);
+		LoggingSink fallback =  new LoggingSink("test", null, null, null);;
 		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
@@ -342,7 +343,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
 				.build();
 
-		LoggingSink fallback = new LoggingSink("test", null);
+		LoggingSink fallback =  new LoggingSink("test", null, null, null);;
 		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
@@ -380,7 +381,7 @@ public class WebhookAuditLogTest {
                         FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore_fail.jks"))
 				.build();
 
-		LoggingSink fallback = new LoggingSink("test", null);
+		LoggingSink fallback =  new LoggingSink("test", null, null, null);;
 		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
@@ -451,7 +452,7 @@ public class WebhookAuditLogTest {
                 .put("searchguard.audit.config.webhook.ssl.verify", true)                
                 .build();
 
-		LoggingSink fallback = new LoggingSink("test", null);
+		LoggingSink fallback =  new LoggingSink("test", null, null, null);;
 		WebhookSink auditlog = new WebhookSink("name", settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT), null, fallback);
         auditlog.store(msg);
         Assert.assertNull(handler.method);

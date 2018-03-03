@@ -31,6 +31,10 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 public class MockAuditMessageFactory {
 
 	public static AuditMessage validAuditMessage() {
+		return validAuditMessage(Category.FAILED_LOGIN);
+	}
+	
+	public static AuditMessage validAuditMessage(Category category) {
 
 	    ClusterService cs = mock(ClusterService.class);
 	    DiscoveryNode dn = mock(DiscoveryNode.class);
@@ -41,15 +45,7 @@ public class MockAuditMessageFactory {
         when(cs.localNode()).thenReturn(dn);
         when(cs.getClusterName()).thenReturn(new ClusterName("testcluster"));
 
-	    //RestRequest holder = createValidRestRequest();
-		Category category = Category.FAILED_LOGIN;
 		TransportAddress ta = new TransportAddress(new InetSocketAddress("8.8.8.8",80));
-
-		//ThreadContext tc = new ThreadContext(Settings.EMPTY);
-		//User user = new User("John Doe");
-		//tc.putTransient(ConfigConstants.SG_USER, user);
-		//tc.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, "8.8.8.8");
-		//tc.putTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");
 
 		AuditMessage msg = new AuditMessage(category, cs, Origin.TRANSPORT, Origin.TRANSPORT);
 		msg.addEffectiveUser("John Doe");
@@ -58,7 +54,4 @@ public class MockAuditMessageFactory {
 		return msg;
 	}
 
-	//private static RestRequest createValidRestRequest() {
-	//	return new MockRestRequest();
-	//}
 }

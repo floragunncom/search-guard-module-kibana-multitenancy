@@ -1,20 +1,26 @@
+/*
+ * Copyright 2016-2018 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.searchguard.auditlog.routing;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.cluster.ClusterName;
-import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.helper.LoggingSink;
 import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
@@ -22,24 +28,12 @@ import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.auditlog.sink.DebugSink;
 import com.floragunn.searchguard.auditlog.sink.ExternalESSink;
 import com.floragunn.searchguard.auditlog.sink.InternalESSink;
-import com.floragunn.searchguard.auditlog.sink.LoggingSink;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class RouterTest {
 
-	ClusterService cs = mock(ClusterService.class);
-    DiscoveryNode dn = mock(DiscoveryNode.class);
 
-    @Before
-    public void setup() {
-        when(dn.getHostAddress()).thenReturn("hostaddress");
-        when(dn.getId()).thenReturn("hostaddress");
-        when(dn.getHostName()).thenReturn("hostaddress");
-        when(cs.localNode()).thenReturn(dn);
-        when(cs.getClusterName()).thenReturn(new ClusterName("cname"));
-    }
-    
 	@Test
 	public void testValidConfiguration() throws Exception {
 		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/configuration_valid.yml")).build();
@@ -108,27 +102,19 @@ public class RouterTest {
     	for(Category category : Category.values()) {
     		if (category.equals(categoryToCheck)) {    			
     			List<AuditLogSink> sinks = sinksForCategory.get(category);
-    			// actual sinks must match the given sink names
-    			Assert.assertEquals(sinkNames.length, sinks.size());
-    			// actual sinks must be contained in sink names of router
-    			for(String sinkName : sinkNames) {
-    				Assert.assertTrue(Arrays.stream(sinkNames).anyMatch(sinkName::equals));
-    			}
     			// each sink must contain our message
     			for(AuditLogSink sink : sinks) {
     				LoggingSink logSink = (LoggingSink)sink;
     				Assert.assertEquals(1, logSink.messages.size());
     				Assert.assertEquals(msg, logSink.messages.get(0));
     				Assert.assertTrue(logSink.sb.length() > 0);
+    				Assert.assertTrue(Arrays.stream(sinkNames).anyMatch(sink.getName()::equals));
     			}
     		} else {
     			// make sure sinks are empty for all other categories, exclude default
     			List<AuditLogSink> sinks = sinksForCategory.get(category);
-    			if (sinks == null) {
-    				continue;
-    			}
     			for(AuditLogSink sink : sinks) {
-    				// default is configured for multiple categores, skip
+    				// default is configured for multiple categories, skip
     				if (sink.getName().equals("default")) {
     					continue;
     				}

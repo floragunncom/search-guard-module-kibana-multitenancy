@@ -3,10 +3,16 @@ searchguard:
     type: com.floragunn.searchguard.auditlog.helper.LoggingSink
     endpoints:
       endpoint1:
-        type: com.floragunn.searchguard.auditlog.helper.LoggingSink
+        type: com.floragunn.searchguard.auditlog.helper.FailingSink
       endpoint2:
         type: com.floragunn.searchguard.auditlog.helper.LoggingSink
       endpoint3:
+        type: com.floragunn.searchguard.auditlog.helper.FailingSink
+      endpoint4:
+        type: com.floragunn.searchguard.auditlog.helper.LoggingSink
+      endpoint5:
+        type: com.floragunn.searchguard.auditlog.helper.LoggingSink        
+      fallback:
         type: com.floragunn.searchguard.auditlog.helper.LoggingSink
     routes:
       MISSING_PRIVILEGEs:
@@ -19,4 +25,10 @@ searchguard:
           - endpoint3
       COMPLIANCE_DOC_WRITE:
         endpoints:
-          - default     
+          - default
+      bad_Headers:
+        endpoints:
+          - endpoint4
+          - endpoint5
+    fallback:
+      type: com.floragunn.searchguard.auditlog.helper.LoggingSink

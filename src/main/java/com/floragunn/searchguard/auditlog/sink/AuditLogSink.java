@@ -48,6 +48,10 @@ public abstract class AuditLogSink {
     	return name;
     }
     
+    public AuditLogSink getFallbackSink() {
+    	return fallbackSink;
+    }
+    
     public final void store(AuditMessage msg) {
 		if (!doStore(msg)) {
 			if (fallbackSink.doStore(msg)) {

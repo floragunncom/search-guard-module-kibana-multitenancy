@@ -20,8 +20,10 @@ package com.floragunn.searchguard.configuration;
 //https://github.com/salyh/elasticsearch-security-plugin/blob/4b53974a43b270ae77ebe79d635e2484230c9d01/src/main/java/org/elasticsearch/plugins/security/filter/DlsWriteFilter.java
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -50,6 +52,8 @@ import org.apache.lucene.search.Weight;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.FixedBitSet;
+import org.bouncycastle.crypto.digests.Blake2bDigest;
+import org.bouncycastle.util.encoders.Hex;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -64,7 +68,9 @@ import org.elasticsearch.index.IndexService;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.FieldReadCallback;
+import com.floragunn.searchguard.support.MapUtils;
 import com.floragunn.searchguard.support.WildcardMatcher;
+import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 
@@ -87,17 +93,19 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
     private final ClusterService clusterService;
     private final ComplianceConfig complianceConfig;
     private final AuditLog auditlog;
-
+    private final Set<String> maskedFields;
+    
     DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includesExcludes,
             final Query dlsQuery, final IndexService indexService, final ThreadContext threadContext,
             final ClusterService clusterService, final ComplianceConfig complianceConfig,
-            final AuditLog auditlog) {
+            final AuditLog auditlog, final Set<String> maskedFields) {
         super(delegate);
         this.indexService = indexService;
         this.threadContext = threadContext;
         this.clusterService = clusterService;
         this.complianceConfig = complianceConfig;
         this.auditlog = auditlog;
+        this.maskedFields = maskedFields;
         flsEnabled = includesExcludes != null && !includesExcludes.isEmpty();
         dlsEnabled = dlsQuery != null;
         if (flsEnabled) {
@@ -236,11 +244,12 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         private final ClusterService clusterService;
         private final ComplianceConfig complianceConfig;
         private final AuditLog auditlog;
+        private final Set<String> maskedFields;
 
         public DlsFlsSubReaderWrapper(final Set<String> includes, final Query dlsQuery,
                 final IndexService indexService, final ThreadContext threadContext,
                 final ClusterService clusterService, final ComplianceConfig complianceConfig,
-                final AuditLog auditlog) {
+                final AuditLog auditlog, final Set<String> maskedFields) {
             this.includes = includes;
             this.dlsQuery = dlsQuery;
             this.indexService = indexService;
@@ -248,11 +257,12 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
             this.clusterService = clusterService;
             this.complianceConfig = complianceConfig;
             this.auditlog = auditlog;
+            this.maskedFields = maskedFields;
         }
 
         @Override
         public LeafReader wrap(final LeafReader reader) {
-            return new DlsFlsFilterLeafReader(reader, includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog);
+            return new DlsFlsFilterLeafReader(reader, includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields);
         }
 
     }
@@ -266,12 +276,13 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         private final ClusterService clusterService;
         private final ComplianceConfig complianceConfig;
         private final AuditLog auditlog;
+        private final Set<String> maskedFields;
 
         public DlsFlsDirectoryReader(final DirectoryReader in, final Set<String> includes, final Query dlsQuery,
                 final IndexService indexService, final ThreadContext threadContext,
                 final ClusterService clusterService, final ComplianceConfig complianceConfig,
-                final AuditLog auditlog) throws IOException {
-            super(in, new DlsFlsSubReaderWrapper(includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog));
+                final AuditLog auditlog, final Set<String> maskedFields) throws IOException {
+            super(in, new DlsFlsSubReaderWrapper(includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields));
             this.includes = includes;
             this.dlsQuery = dlsQuery;
             this.indexService = indexService;
@@ -279,11 +290,12 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
             this.clusterService = clusterService;
             this.complianceConfig = complianceConfig;
             this.auditlog = auditlog;
+            this.maskedFields = maskedFields;
         }
 
         @Override
         protected DirectoryReader doWrapDirectoryReader(final DirectoryReader in) throws IOException {
-            return new DlsFlsDirectoryReader(in, includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog);
+            return new DlsFlsDirectoryReader(in, includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields);
         }
 
         @Override
@@ -294,21 +306,23 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
     @Override
     public void document(final int docID, final StoredFieldVisitor visitor) throws IOException {
+        final boolean maskFields = maskedFields != null && maskedFields.size() > 0;
+        
         if(complianceConfig.readHistoryEnabledForIndex(indexService.index().getName())) {
             final ComplianceAwareStoredFieldVisitor cv = new ComplianceAwareStoredFieldVisitor(visitor);
-
+            
             if(flsEnabled) {
-                in.document(docID, new FlsStoredFieldVisitor(cv));
+                in.document(docID, new FlsStoredFieldVisitor(maskFields?new HashingStoredFieldVisitor(cv):cv));
             } else {
-                in.document(docID, cv);
+                in.document(docID, maskFields?new HashingStoredFieldVisitor(cv):cv);
             }
 
             cv.finished();
         } else {
             if(flsEnabled) {
-                in.document(docID, new FlsStoredFieldVisitor(visitor));
+                in.document(docID, new FlsStoredFieldVisitor(maskFields?new HashingStoredFieldVisitor(visitor):visitor));
             } else {
-                in.document(docID, visitor);
+                in.document(docID, maskFields?new HashingStoredFieldVisitor(visitor):visitor);
             }
         }
 
@@ -336,7 +350,8 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
     private class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
 
         private final StoredFieldVisitor delegate;
-        private final FieldReadCallback fieldReadCallback = new FieldReadCallback(threadContext, indexService, clusterService, complianceConfig, auditlog);
+        private final FieldReadCallback fieldReadCallback = 
+                new FieldReadCallback(threadContext, indexService, clusterService, complianceConfig, auditlog, maskedFields);
 
         public ComplianceAwareStoredFieldVisitor(final StoredFieldVisitor delegate) {
             super();
@@ -485,7 +500,105 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         public String toString() {
             return delegate.toString();
         }
+    }
+    
+    private class HashingStoredFieldVisitor extends StoredFieldVisitor {
 
+        private final StoredFieldVisitor delegate;
+
+        public HashingStoredFieldVisitor(final StoredFieldVisitor delegate) {
+            super();
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void binaryField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+
+            if (fieldInfo.name.equals("_source")) {
+                final BytesReference bytesRef = new BytesArray(value);
+                final Tuple<XContentType, Map<String, Object>> bytesRefTuple = XContentHelper.convertToMap(bytesRef, false, XContentType.JSON);
+                Map<String, Object> filteredSource = bytesRefTuple.v2();
+                MapUtils.deepTraverseMap(filteredSource, HASH_CB);
+                final XContentBuilder xBuilder = XContentBuilder.builder(bytesRefTuple.v1().xContent()).map(filteredSource);
+                delegate.binaryField(fieldInfo, BytesReference.toBytes(xBuilder.bytes()));
+            } else {
+                delegate.binaryField(fieldInfo, value);
+            }
+        }
+
+
+        @Override
+        public Status needsField(final FieldInfo fieldInfo) throws IOException {
+            return isFls(fieldInfo.name) ? delegate.needsField(fieldInfo) : Status.NO;
+        }
+
+        @Override
+        public int hashCode() {
+            return delegate.hashCode();
+        }
+
+        @Override
+        public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+            delegate.stringField(fieldInfo, hash(value));
+        }
+
+        @Override
+        public void intField(final FieldInfo fieldInfo, final int value) throws IOException {
+            delegate.intField(fieldInfo, value);
+        }
+
+        @Override
+        public void longField(final FieldInfo fieldInfo, final long value) throws IOException {
+            delegate.longField(fieldInfo, value);
+        }
+
+        @Override
+        public void floatField(final FieldInfo fieldInfo, final float value) throws IOException {
+            delegate.floatField(fieldInfo, value);
+        }
+
+        @Override
+        public void doubleField(final FieldInfo fieldInfo, final double value) throws IOException {
+            delegate.doubleField(fieldInfo, value);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            return delegate.equals(obj);
+        }
+
+        @Override
+        public String toString() {
+            return delegate.toString();
+        }
+    }
+    
+    private byte[] hash(byte[] in) {
+        Blake2bDigest hash = new Blake2bDigest(null, 32, null, complianceConfig.getSalt16());
+        hash.update(in, 0, in.length);
+        byte[] out = new byte[hash.getDigestSize()];
+        hash.doFinal(out, 0);
+        return Hex.encode(out);
+    }
+    
+    private String hash(String in) {
+        return new String(hash(in.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
+    }
+    
+    private final MapUtils.Callback HASH_CB = new HashingCallback();
+    
+    private class HashingCallback implements MapUtils.Callback {
+        @Override
+        public void call(String key, Map<String, Object> map, List<String> stack) {
+            Object v = map.get(key);
+            if(v != null && v instanceof String) {
+                final String field = stack.isEmpty()?key:Joiner.on('.').join(stack)+"."+key;
+                if(WildcardMatcher.matchAny(maskedFields, field)) {
+                    map.replace(key, hash((String) v));
+                }
+            }
+        }
+        
     }
 
     @Override

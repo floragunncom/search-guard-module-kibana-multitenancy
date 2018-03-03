@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
@@ -41,6 +42,7 @@ import org.elasticsearch.index.mapper.Uid;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SourceFieldsContext;
+import com.floragunn.searchguard.support.WildcardMatcher;
 import com.github.wnameless.json.flattener.JsonFlattener;
 
 //TODO  We need to deal with caching!!
@@ -56,19 +58,22 @@ public final class FieldReadCallback {
     //private final ClusterService clusterService;
     private final Index index;
     private final ComplianceConfig complianceConfig;
+    private final Set<String> maskedFields;
     private final AuditLog auditLog;
     private Function<Map<String, ?>, Map<String, Object>> filterFunction;
     private SourceFieldsContext sfc;
     private Doc doc;
 
     public FieldReadCallback(final ThreadContext threadContext, final IndexService indexService,
-            final ClusterService clusterService, final ComplianceConfig complianceConfig, final AuditLog auditLog) {
+            final ClusterService clusterService, final ComplianceConfig complianceConfig, final AuditLog auditLog,
+            final Set<String> maskedFields) {
         super();
         //this.threadContext = Objects.requireNonNull(threadContext);
         //this.clusterService = Objects.requireNonNull(clusterService);
         this.index = Objects.requireNonNull(indexService).index();
         this.complianceConfig = complianceConfig;
         this.auditLog = auditLog;
+        this.maskedFields = maskedFields;
         try {
             sfc = (SourceFieldsContext) HeaderHelper.deserializeSafeFromHeader(threadContext, "_sg_source_field_context");
             if(sfc != null && sfc.getIncludes() != null && sfc.getExcludes() != null) {
@@ -85,13 +90,17 @@ public final class FieldReadCallback {
         }
     }
 
-    private boolean recordField(final String fieldName) {
-        return complianceConfig.readHistoryEnabledForField(index.getName(), fieldName);
+    private boolean recordField(final String fieldName, boolean isStringField) {
+        boolean masked = false;
+        if(isStringField && maskedFields != null && maskedFields.size() > 0) {
+            masked = WildcardMatcher.matchAny(maskedFields, fieldName);
+        }
+        return !masked && complianceConfig.readHistoryEnabledForField(index.getName(), fieldName);
     }
 
     public void binaryFieldRead(final FieldInfo fieldInfo, byte[] fieldValue) {
         try {
-            if(!recordField(fieldInfo.name) && !fieldInfo.name.equals("_source") && !fieldInfo.name.equals("_id")) {
+            if(!recordField(fieldInfo.name, false) && !fieldInfo.name.equals("_source") && !fieldInfo.name.equals("_id")) {
                 return;
             }
 
@@ -118,7 +127,7 @@ public final class FieldReadCallback {
 
                 Map<String, Object> filteredSource = new JsonFlattener(new String(fieldValue, StandardCharsets.UTF_8)).flattenAsMap();
                 for(String k: filteredSource.keySet()) {
-                    if(!recordField(k)) {
+                    if(!recordField(k, filteredSource.get(k) instanceof String)) {
                         continue;
                     }
                     fieldRead0(k, filteredSource.get(k));
@@ -135,7 +144,7 @@ public final class FieldReadCallback {
 
     public void stringFieldRead(final FieldInfo fieldInfo, final byte[] fieldValue) {
         try {
-            if(!recordField(fieldInfo.name)) {
+            if(!recordField(fieldInfo.name, true)) {
                 return;
             }
             fieldRead0(fieldInfo.name, new String(fieldValue, StandardCharsets.UTF_8));
@@ -146,7 +155,7 @@ public final class FieldReadCallback {
 
     public void numericFieldRead(final FieldInfo fieldInfo, final Number fieldValue) {
         try {
-            if(!recordField(fieldInfo.name)) {
+            if(!recordField(fieldInfo.name, false)) {
                 return;
             }
             fieldRead0(fieldInfo.name, fieldValue);

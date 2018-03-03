@@ -66,6 +66,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
 
         Set<String> flsFields = null;
         Set<String> unparsedDlsQueries = null;
+        Set<String> maskedFields = null;
 
         if(!isAdmin) {
 
@@ -73,9 +74,12 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
                     ConfigConstants.SG_FLS_FIELDS_HEADER);
             final Map<String, Set<String>> queries = (Map<String, Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext,
                     ConfigConstants.SG_DLS_QUERY_HEADER);
+            final Map<String, Set<String>> maskedFieldsMap = (Map<String, Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadContext,
+                    ConfigConstants.SG_MASKED_FIELD_HEADER);
 
             final String flsEval = evalMap(allowedFlsFields, index.getName());
             final String dlsEval = evalMap(queries, index.getName());
+            final String maskedEval = evalMap(maskedFieldsMap, index.getName());
 
             if (flsEval != null) {
                 flsFields = new HashSet<>(metaFields);
@@ -85,12 +89,17 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
             if (dlsEval != null) {
                 unparsedDlsQueries = queries.get(dlsEval);
             }
+            
+            if (maskedEval != null) {
+                maskedFields = new HashSet<>();
+                maskedFields.addAll(maskedFieldsMap.get(maskedEval));
+            }
 
         }
 
         return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields,
                 DlsQueryParser.parse(unparsedDlsQueries, queryShardContext, this.namedXContentRegistry),
-                indexService, threadContext, clusterService, complianceConfig, auditlog);
+                indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields);
     }
 
 

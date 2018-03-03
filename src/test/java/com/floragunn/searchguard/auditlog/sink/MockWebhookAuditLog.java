@@ -23,8 +23,8 @@ public class MockWebhookAuditLog extends WebhookSink {
 	public String payload = null;
 	public String url = null;
 	
-	public MockWebhookAuditLog(Settings settings, Settings sinkSettings) throws Exception {
-		super(settings, sinkSettings, null);
+	public MockWebhookAuditLog(Settings settings, Settings sinkSettings, AuditLogSink fallback) throws Exception {
+		super("test", settings, sinkSettings, null, fallback);
 	}
 
 	@Override

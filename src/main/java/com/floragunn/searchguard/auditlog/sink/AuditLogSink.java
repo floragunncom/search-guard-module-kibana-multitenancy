@@ -30,20 +30,36 @@ public abstract class AuditLogSink {
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Settings settings;
     protected final Settings sinkConfiguration;
+    private final String name;
+    final AuditLogSink fallbackSink;
     
-    protected AuditLogSink(Settings settings, Settings sinkConfiguration) {
-        this.settings = settings;
+    protected AuditLogSink(String name, Settings settings, Settings sinkConfiguration, AuditLogSink fallbackSink) {
+        this.name = name.toLowerCase();
+    	this.settings = settings;
         this.sinkConfiguration = sinkConfiguration;
+        this.fallbackSink = fallbackSink;
     }
     
     public boolean isHandlingBackpressure() {
         return false;
     }
-
-    public abstract void store(AuditMessage msg);
+    
+    public String getName() {
+    	return name;
+    }
+    
+    public final void store(AuditMessage msg) {
+		if (!doStore(msg)) {
+			if (fallbackSink.doStore(msg)) {
+				System.out.println(msg.toPrettyString());
+			}
+		}
+    }
+    
+    protected abstract boolean doStore(AuditMessage msg);
     
     public void close() throws IOException {
-
+    	// to be implemented by subclasses 
     }
     
     protected String getExpandedIndexName(DateTimeFormatter indexPattern, String index) {
@@ -52,4 +68,37 @@ public abstract class AuditLogSink {
         }
         return indexPattern.print(DateTime.now(DateTimeZone.UTC));
     }
+    
+    
+    @Override
+    public String toString() {    	
+    	return ("AudtLogSink: Name: " + name+", type: " + this.getClass().getSimpleName());
+    }
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		AuditLogSink other = (AuditLogSink) obj;
+		if (name == null) {
+			if (other.name != null)
+				return false;
+		} else if (!name.equals(other.name))
+			return false;
+		return true;
+	}
+    
+
 }

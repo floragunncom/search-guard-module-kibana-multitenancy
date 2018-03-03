@@ -14,23 +14,23 @@
 
 package com.floragunn.searchguard.auditlog.sink;
 
-import org.elasticsearch.common.settings.Settings;
+import java.io.IOException;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
 public final class DebugSink extends AuditLogSink {
 
-    public DebugSink(final Settings settings, final Settings sinkSettings) {
-        super(settings, sinkSettings);
+    public DebugSink(String name, AuditLogSink fallbackSink) {
+        super(name, null, null, fallbackSink);
     }
 
     public boolean isHandlingBackpressure() {
         return true;
     }
-
-    @Override
-    public void store(final AuditMessage msg) {
+    
+    public boolean doStore(final AuditMessage msg) {
         System.out.println("AUDIT_LOG: " + msg.toPrettyString());
+        return true;
     }
 
 }

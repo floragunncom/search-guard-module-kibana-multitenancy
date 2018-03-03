@@ -27,14 +27,15 @@ public class TestAuditlogImpl extends AuditLogSink {
     public static List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
     public static StringBuffer sb = new StringBuffer();
     
-    public TestAuditlogImpl(Settings settings, Settings sinkSettings) {
-        super(settings, sinkSettings);
+    public TestAuditlogImpl(String name, Settings settings, Settings sinkSettings, AuditLogSink fallbackSink) {
+        super(name, null, null, fallbackSink);
     }
 
-    @Override
-    public synchronized void store(AuditMessage msg) {
+    
+    public synchronized boolean  doStore(AuditMessage msg) {
         sb.append(msg.toPrettyString()+System.lineSeparator());
         messages.add(msg);
+        return true;
     }
     
     public static synchronized void clear() {

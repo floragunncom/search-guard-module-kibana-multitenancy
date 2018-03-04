@@ -2,6 +2,7 @@ package com.floragunn.searchguard.auditlog.routing;
 
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.helper.LoggingSink;
@@ -16,6 +17,7 @@ import com.floragunn.searchguard.test.helper.file.FileHelper;
 public class PerfTest {
 
 	@Test
+	@Ignore(value="jvm crash on cci")
 	public void testPerf() throws Exception {
 		Settings.Builder settingsBuilder = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/perftest.yml"));
 

@@ -61,6 +61,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
         this.auditlog = auditlog;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected DirectoryReader dlsFlsWrap(final DirectoryReader reader, boolean isAdmin) throws IOException {
 

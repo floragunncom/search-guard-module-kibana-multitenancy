@@ -35,6 +35,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
@@ -183,6 +184,16 @@ public final class AuditMessage {
         }
     }
 
+    public void addBody(XContentBuilder builder) {
+        if (builder != null) {
+            try {
+                builder.flush();
+                auditInfo.put(REQUEST_BODY, builder.string());
+            } catch (Exception e) {
+                auditInfo.put(REQUEST_BODY, e.toString());
+            }
+        }
+    }
 
     public void addBody(Tuple<XContentType, BytesReference> xContentTuple) {
         if (xContentTuple != null) {

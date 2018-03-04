@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -41,6 +42,8 @@ import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.XContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -617,7 +620,22 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         final String sha256 = DigestUtils.sha256Hex(configAsString+envAsString+propsAsString);
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_EXTERNAL_CONFIG, clusterService, null, null);
-        msg.addSource(configAsString+"  "+envAsString+"  "+propsAsString+"  "+sha256);
+        
+        try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
+            builder.startObject();
+            builder.startObject("external_configuration");
+            builder.field("elasticsearch_yml", configAsString);
+            builder.field("os_environment", envAsString);
+            builder.field("java_properties", propsAsString);
+            builder.field("sha256_checksum", sha256);
+            builder.endObject();
+            builder.endObject();
+            msg.addBody(builder);
+            System.out.println("add "+builder.string());
+        } catch (Exception e) {
+            log.error("Unable to build message",e);
+        }
+
         Map<String, Path> paths = new HashMap<String, Path>();
         for(String key: settings.keySet()) {
             if(key.startsWith("searchguard") &&

@@ -622,4 +622,36 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
         TestAuditlogImpl.clear();
     }
+    
+    @Test
+    public void testIndexCloseDelete() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+        
+        try (TransportClient tc = getInternalTransportClient()) {
+            tc.admin().indices().create(new CreateIndexRequest("index1")).actionGet();
+            tc.admin().indices().create(new CreateIndexRequest("index2")).actionGet();
+        }
+        
+        TestAuditlogImpl.clear();
+        
+        HttpResponse response = rh.executeDeleteRequest("index1?pretty", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        response = rh.executePostRequest("index2/_close?pretty", "", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:admin/close"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:admin/delete"));
+        Assert.assertEquals(4, TestAuditlogImpl.messages.size());
+    }
 }

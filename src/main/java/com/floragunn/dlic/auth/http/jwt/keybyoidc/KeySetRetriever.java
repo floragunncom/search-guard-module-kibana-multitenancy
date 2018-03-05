@@ -6,6 +6,7 @@ import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.StatusLine;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -18,29 +19,38 @@ public class KeySetRetriever implements KeySetProvider {
 	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	private String openIdConnectEndpoint;
+	private int httpTimeoutMs = 10000;
 
 	KeySetRetriever(String openIdConnectEndpoint) {
 		this.openIdConnectEndpoint = openIdConnectEndpoint;
 	}
 
-	public JsonWebKeys get() throws AuthenticatorUnavailableExption {
+	public JsonWebKeys get() throws AuthenticatorUnavailableException {
 		String uri = getJwksUri();
 
 		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-
+			
 			HttpGet httpGet = new HttpGet(uri);
 
+			RequestConfig requestConfig = RequestConfig.custom()
+				    .setConnectionRequestTimeout(getHttpTimeoutMs())
+				    .setConnectTimeout(getHttpTimeoutMs())
+				    .setSocketTimeout(getHttpTimeoutMs())
+				    .build();
+			
+			httpGet.setConfig(requestConfig);
+			
 			try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
 				StatusLine statusLine = response.getStatusLine();
 
 				if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-					throw new AuthenticatorUnavailableExption("Error while getting " + uri + ": " + statusLine);
+					throw new AuthenticatorUnavailableException("Error while getting " + uri + ": " + statusLine);
 				}
 
 				HttpEntity httpEntity = response.getEntity();
 
 				if (httpEntity == null) {
-					throw new AuthenticatorUnavailableExption("Error while getting " + uri + ": Empty response entity");
+					throw new AuthenticatorUnavailableException("Error while getting " + uri + ": Empty response entity");
 				}
 
 				JsonWebKeys keySet = JwkUtils.readJwkSet(httpEntity.getContent());
@@ -48,28 +58,38 @@ public class KeySetRetriever implements KeySetProvider {
 				return keySet;
 			}
 		} catch (IOException e) {
-			throw new AuthenticatorUnavailableExption("Error while getting " + uri + ": " + e, e);
+			throw new AuthenticatorUnavailableException("Error while getting " + uri + ": " + e, e);
 		}
 
 	}
 
-	String getJwksUri() throws AuthenticatorUnavailableExption {
-		// TODO caching
+	String getJwksUri() throws AuthenticatorUnavailableException {
+		// TODO caching 
 
 		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+			
 			HttpGet httpGet = new HttpGet(openIdConnectEndpoint);
+			
+			RequestConfig requestConfig = RequestConfig.custom()
+				    .setConnectionRequestTimeout(getHttpTimeoutMs())
+				    .setConnectTimeout(getHttpTimeoutMs())
+				    .setSocketTimeout(getHttpTimeoutMs())
+				    .build();
+			
+			httpGet.setConfig(requestConfig);
+			
 			try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
 				StatusLine statusLine = response.getStatusLine();
 
 				if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-					throw new AuthenticatorUnavailableExption(
+					throw new AuthenticatorUnavailableException(
 							"Error while getting " + openIdConnectEndpoint + ": " + statusLine);
 				}
 
 				HttpEntity httpEntity = response.getEntity();
 
 				if (httpEntity == null) {
-					throw new AuthenticatorUnavailableExption(
+					throw new AuthenticatorUnavailableException(
 							"Error while getting " + openIdConnectEndpoint + ": Empty response entity");
 				}
 
@@ -81,9 +101,19 @@ public class KeySetRetriever implements KeySetProvider {
 			}
 
 		} catch (IOException e) {
-			throw new AuthenticatorUnavailableExption("Error while getting " + openIdConnectEndpoint + ": " + e, e);
+			throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + e, e);
 		}
 
 	}
+
+	public int getHttpTimeoutMs() {
+		return httpTimeoutMs;
+	}
+
+	public void setHttpTimeoutMs(int httpTimeoutMs) {
+		this.httpTimeoutMs = httpTimeoutMs;
+	}
+	
+
 
 }

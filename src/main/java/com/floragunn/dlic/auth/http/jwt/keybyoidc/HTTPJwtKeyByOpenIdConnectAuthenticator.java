@@ -74,7 +74,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator implements HTTPAuthenticator
 
 		try {
 			jwt = jwtVerifier.getJwtToken(jwtString);
-		} catch (AuthenticatorUnavailableExption e) {
+		} catch (AuthenticatorUnavailableException e) {
 			throw new ElasticsearchSecurityException(e.getMessage(), RestStatus.SERVICE_UNAVAILABLE);
 		} catch (JwtException e) {
 			log.info("Extracting JWT token from " + jwtString + " failed", e);

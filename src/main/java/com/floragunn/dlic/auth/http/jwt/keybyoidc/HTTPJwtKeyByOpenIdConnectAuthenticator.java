@@ -38,14 +38,20 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator implements HTTPAuthenticator
 	private final String rolesKey;
 
 	public HTTPJwtKeyByOpenIdConnectAuthenticator(Settings settings, Path configPath) {
-		keySetRetriever = new KeySetRetriever(settings.get("openid_connect_url"));
-		selfRefreshingKeySet = new SelfRefreshingKeySet(keySetRetriever);
-		jwtVerifier = new JwtVerifier(selfRefreshingKeySet);
-
 		jwtUrlParameter = settings.get("jwt_url_parameter");
 		jwtHeaderName = settings.get("jwt_header", "Authorization");
 		rolesKey = settings.get("roles_key");
 		subjectKey = settings.get("subject_key");
+
+		try {
+			keySetRetriever = new KeySetRetriever(settings.get("openid_connect_url"),
+					getSSLConfig(settings, configPath));
+			selfRefreshingKeySet = new SelfRefreshingKeySet(keySetRetriever);
+			jwtVerifier = new JwtVerifier(selfRefreshingKeySet);
+
+		} catch (Exception e) {
+			log.error("Error creating JWT authenticator: " + e + ". JWT authentication will not work", e);
+		}
 	}
 
 	@Override
@@ -191,6 +197,11 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator implements HTTPAuthenticator
 		}
 
 		return roles;
+	}
+
+	private static SettingsBasedSSLConfigurator.SSLConfig getSSLConfig(Settings settings, Path configPath)
+			throws Exception {
+		return new SettingsBasedSSLConfigurator(settings, configPath, "openid_connect_idp").buildSSLConfig();
 	}
 
 	@Override

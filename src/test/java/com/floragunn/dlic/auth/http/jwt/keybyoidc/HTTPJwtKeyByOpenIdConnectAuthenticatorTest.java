@@ -4,7 +4,6 @@ import static com.floragunn.dlic.auth.http.jwt.keybyoidc.CxfTestTools.toJson;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
@@ -21,13 +20,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.floragunn.dlic.auth.http.jwt.FakeRestRequest;
-import com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.BaseEncoding;
-
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 
 public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 

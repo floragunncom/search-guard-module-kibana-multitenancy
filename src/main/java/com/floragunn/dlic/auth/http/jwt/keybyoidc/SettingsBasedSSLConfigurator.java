@@ -23,12 +23,12 @@ import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PemKeyReader;
 import com.google.common.collect.ImmutableList;
 
 public class SettingsBasedSSLConfigurator {
 
+	public static final String CERT_ALIAS = "cert_alias";
 	public static final String ENABLE_SSL = "enable_ssl";
 	public static final String ENABLE_SSL_CLIENT_AUTH = "enable_ssl_client_auth";
 	public static final String PEMKEY_FILEPATH = "pemkey_filepath";
@@ -200,10 +200,10 @@ public class SettingsBasedSSLConfigurator {
 				SSLConfigConstants.DEFAULT_STORE_PASSWORD);
 		effectiveKeyPassword = keyStorePassword == null || keyStorePassword.isEmpty() ? null
 				: keyStorePassword.toCharArray();
-		effectiveKeyAlias = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_SSL_JKS_CERT_ALIAS, null);
+		effectiveKeyAlias = getSetting(CERT_ALIAS);
 
 		if (enableSslClientAuth && effectiveKeyAlias == null) {
-			throw new IllegalArgumentException(ConfigConstants.SEARCHGUARD_AUDIT_SSL_JKS_CERT_ALIAS + " not given");
+			throw new IllegalArgumentException(settingsKeyPrefix + CERT_ALIAS + " not given");
 		}
 
 		effectiveTruststore = trustStore;

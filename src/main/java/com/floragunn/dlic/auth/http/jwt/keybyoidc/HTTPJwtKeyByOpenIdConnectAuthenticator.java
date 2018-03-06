@@ -87,32 +87,25 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator implements HTTPAuthenticator
 			return null;
 		}
 
-		try {
-			JwtClaims claims = jwt.getClaims();
+		JwtClaims claims = jwt.getClaims();
 
-			final String subject = extractSubject(claims);
+		final String subject = extractSubject(claims);
 
-			if (subject == null) {
-				log.error("No subject found in JWT token");
-				return null;
-			}
-
-			final String[] roles = extractRoles(claims);
-
-			final AuthCredentials ac = new AuthCredentials(subject, roles).markComplete();
-
-			for (Entry<String, Object> claim : claims.asMap().entrySet()) {
-				ac.addAttribute("attr.jwt." + claim.getKey(), String.valueOf(claim.getValue()));
-			}
-
-			return ac;
-
-		} catch (Exception e) {
-			if (log.isDebugEnabled()) {
-				log.debug("Invalid or expired JWT token.", e);
-			}
+		if (subject == null) {
+			log.error("No subject found in JWT token");
 			return null;
 		}
+
+		final String[] roles = extractRoles(claims);
+
+		final AuthCredentials ac = new AuthCredentials(subject, roles).markComplete();
+
+		for (Entry<String, Object> claim : claims.asMap().entrySet()) {
+			ac.addAttribute("attr.jwt." + claim.getKey(), String.valueOf(claim.getValue()));
+		}
+
+		return ac;
+
 	}
 
 	protected String getJwtTokenString(RestRequest request) {

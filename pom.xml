@@ -107,6 +107,13 @@
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>fluent-hc</artifactId>
     </dependency>
+    
+    <dependency>
+    <groupId>org.apache.httpcomponents</groupId>
+    <artifactId>httpclient-cache</artifactId>
+    <version>4.5.3</version>
+	</dependency>
+    
 
     <dependency>
       <groupId>org.elasticsearch.client</groupId>

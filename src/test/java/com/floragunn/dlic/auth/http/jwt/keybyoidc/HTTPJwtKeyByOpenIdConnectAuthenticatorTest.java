@@ -1,18 +1,7 @@
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.CxfTestTools.toJson;
-
-import java.io.IOException;
 import java.util.HashMap;
 
-import org.apache.http.HttpException;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.bootstrap.HttpServer;
-import org.apache.http.impl.bootstrap.ServerBootstrap;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.HttpRequestHandler;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -25,50 +14,18 @@ import com.google.common.collect.ImmutableMap;
 
 public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
-	private final static String CTX_DISCOVER = "/discover";
-	private final static String CTX_KEYS = "/api/oauth/keys";
-
-	private static int port = 8081;
-	private static String mockIdpServerUri = "http://localhost:" + port;
-	protected static HttpServer mockIdpServer = null;
+	protected static MockIpdServer mockIdpServer;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
-		mockIdpServer = ServerBootstrap.bootstrap().setListenerPort(port)
-				.registerHandler(CTX_DISCOVER, new HttpRequestHandler() {
-
-					@Override
-					public void handle(HttpRequest request, HttpResponse response, HttpContext context)
-							throws HttpException, IOException {
-
-						response.setStatusCode(200);
-						response.setEntity(new StringEntity("{\"jwks_uri\": \"" + mockIdpServerUri + CTX_KEYS + "\",\n"
-								+ "\"issuer\": \"" + mockIdpServerUri + "\", \"unknownPropertyToBeIgnored\": 42}"));
-
-					}
-				}).registerHandler(CTX_KEYS, new HttpRequestHandler() {
-
-					@Override
-					public void handle(HttpRequest request, HttpResponse response, HttpContext context)
-							throws HttpException, IOException {
-
-						response.setStatusCode(200);
-						response.setEntity(new StringEntity(toJson(TestJwks.ALL)));
-
-					}
-				})
-
-				.create();
-
-		mockIdpServer.start();
-
+		mockIdpServer = new MockIpdServer();
 	}
 
 	@AfterClass
 	public static void tearDown() {
 		if (mockIdpServer != null) {
 			try {
-				mockIdpServer.stop();
+				mockIdpServer.close();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -77,7 +34,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
 	@Test
 	public void basicTest() {
-		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServerUri + CTX_DISCOVER).build();
+		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).build();
 
 		HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
@@ -93,7 +50,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
 	@Test
 	public void bearerTest() {
-		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServerUri + CTX_DISCOVER).build();
+		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).build();
 
 		HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
@@ -111,7 +68,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
 	@Test
 	public void testRoles() throws Exception {
-		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServerUri + CTX_DISCOVER)
+		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri())
 				.put("roles_key", TestJwts.ROLES_CLAIM).build();
 
 		HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
@@ -126,7 +83,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
 	@Test
 	public void testExp() throws Exception {
-		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServerUri + CTX_DISCOVER).build();
+		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).build();
 
 		HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
@@ -141,7 +98,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 	@Test
 	public void testRS256() throws Exception {
 
-		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServerUri + CTX_DISCOVER).build();
+		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).build();
 
 		HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
@@ -158,7 +115,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 	@Test
 	public void testBadSignature() throws Exception {
 
-		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServerUri + CTX_DISCOVER).build();
+		Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).build();
 
 		HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 

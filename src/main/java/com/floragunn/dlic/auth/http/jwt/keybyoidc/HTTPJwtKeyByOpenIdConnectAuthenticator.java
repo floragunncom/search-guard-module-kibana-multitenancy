@@ -45,7 +45,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator implements HTTPAuthenticator
 
 		try {
 			keySetRetriever = new KeySetRetriever(settings.get("openid_connect_url"),
-					getSSLConfig(settings, configPath));
+					getSSLConfig(settings, configPath), settings.getAsBoolean("cache_jwks_endpoint", false));
 			selfRefreshingKeySet = new SelfRefreshingKeySet(keySetRetriever);
 			jwtVerifier = new JwtVerifier(selfRefreshingKeySet);
 

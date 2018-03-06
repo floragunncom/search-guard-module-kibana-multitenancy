@@ -12,6 +12,8 @@ import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 
+import com.google.common.base.Strings;
+
 public class JwtVerifier extends JoseJwtConsumer {
 
 	private final KeyProvider keyProvider;
@@ -26,6 +28,10 @@ public class JwtVerifier extends JoseJwtConsumer {
 
 	protected JwsSignatureVerifier getInitializedSignatureVerifier(JwsHeaders jwsHeaders) {
 		String keyId = jwsHeaders.getKeyId();
+
+		if (Strings.isNullOrEmpty(keyId)) {
+			throw new JwtException("JWT did not contain kid (Headers: " + jwsHeaders + ")");
+		}
 
 		JsonWebKey key = keyProvider.getKeyByKid(keyId);
 

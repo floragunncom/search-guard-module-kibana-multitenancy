@@ -140,6 +140,9 @@ public class SelfRefreshingKeySet implements KeyProvider {
 				}
 			});
 
+			// XXX This is probably not safe, because the future may finish before we reach
+			// this point. We have to use future.get() with a timeout instead
+
 			try {
 				wait(requestTimeoutMs);
 			} catch (InterruptedException e) {

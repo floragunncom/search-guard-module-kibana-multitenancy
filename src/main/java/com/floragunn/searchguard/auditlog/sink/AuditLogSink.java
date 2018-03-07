@@ -29,14 +29,14 @@ public abstract class AuditLogSink {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Settings settings;
-    protected final Settings sinkConfiguration;
+    protected final Settings sinkSettings;
     private final String name;
     final AuditLogSink fallbackSink;
     
     protected AuditLogSink(String name, Settings settings, Settings sinkConfiguration, AuditLogSink fallbackSink) {
         this.name = name.toLowerCase();
     	this.settings = settings;
-        this.sinkConfiguration = sinkConfiguration;
+        this.sinkSettings = sinkConfiguration;
         this.fallbackSink = fallbackSink;
     }
     

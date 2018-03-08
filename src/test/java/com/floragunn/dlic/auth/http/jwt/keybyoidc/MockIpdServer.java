@@ -6,19 +6,36 @@ import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CharsetEncoder;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.cert.Certificate;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
+import org.apache.http.config.ConnectionConfig;
+import org.apache.http.config.MessageConstraints;
+import org.apache.http.entity.ContentLengthStrategy;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.ConnSupport;
+import org.apache.http.impl.DefaultBHttpServerConnection;
 import org.apache.http.impl.bootstrap.HttpServer;
+import org.apache.http.impl.bootstrap.SSLServerSetupHandler;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
+import org.apache.http.io.HttpMessageParserFactory;
+import org.apache.http.io.HttpMessageWriterFactory;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpRequestHandler;
 
@@ -42,7 +59,7 @@ class MockIpdServer implements Closeable {
 		this.uri = (ssl ? "https" : "http") + "://localhost:" + port;
 		this.ssl = ssl;
 
-		this.httpServer = ServerBootstrap.bootstrap().setListenerPort(port).setSslContext(createSSLContext())
+		ServerBootstrap serverBootstrap = ServerBootstrap.bootstrap().setListenerPort(port)
 				.registerHandler(CTX_DISCOVER, new HttpRequestHandler() {
 
 					@Override
@@ -61,9 +78,33 @@ class MockIpdServer implements Closeable {
 						handleKeysRequest(request, response, context);
 
 					}
-				})
+				});
 
-				.create();
+		if (ssl) {
+			serverBootstrap = serverBootstrap.setSslContext(createSSLContext())
+					.setSslSetupHandler(new SSLServerSetupHandler() {
+
+						@Override
+						public void initialize(SSLServerSocket socket) throws SSLException {
+							socket.setNeedClientAuth(true);
+						}
+					}).setConnectionFactory(new HttpConnectionFactory<DefaultBHttpServerConnection>() {
+
+						private ConnectionConfig cconfig = ConnectionConfig.DEFAULT;
+
+						@Override
+						public DefaultBHttpServerConnection createConnection(final Socket socket) throws IOException {
+							final SSLTestHttpServerConnection conn = new SSLTestHttpServerConnection(this.cconfig.getBufferSize(),
+									this.cconfig.getFragmentSizeHint(), ConnSupport.createDecoder(this.cconfig),
+									ConnSupport.createEncoder(this.cconfig), this.cconfig.getMessageConstraints(), null,
+									null, null, null);
+							conn.bind(socket);
+							return conn;
+						}
+					});
+		}
+
+		this.httpServer = serverBootstrap.create();
 
 		httpServer.start();
 	}
@@ -132,4 +173,19 @@ class MockIpdServer implements Closeable {
 		}
 	}
 
+	static class SSLTestHttpServerConnection extends DefaultBHttpServerConnection {
+		public SSLTestHttpServerConnection(final int buffersize, final int fragmentSizeHint, final CharsetDecoder chardecoder,
+				final CharsetEncoder charencoder, final MessageConstraints constraints,
+				final ContentLengthStrategy incomingContentStrategy,
+				final ContentLengthStrategy outgoingContentStrategy,
+				final HttpMessageParserFactory<HttpRequest> requestParserFactory,
+				final HttpMessageWriterFactory<HttpResponse> responseWriterFactory) {
+			super(buffersize, fragmentSizeHint, chardecoder, charencoder, constraints, incomingContentStrategy,
+					outgoingContentStrategy, requestParserFactory, responseWriterFactory);
+		}
+
+		public Certificate[] getPeerCertificates() throws SSLPeerUnverifiedException {
+			return ((SSLSocket) getSocket()).getSession().getPeerCertificates();
+		}
+	}
 }

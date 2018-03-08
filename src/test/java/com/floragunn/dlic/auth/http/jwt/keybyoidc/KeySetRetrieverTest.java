@@ -5,12 +5,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.security.KeyStore;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
 import java.util.Map;
 
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.HttpCoreContext;
 import org.apache.http.ssl.PrivateKeyDetails;
 import org.apache.http.ssl.PrivateKeyStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
@@ -21,6 +24,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.google.common.hash.Hashing;
 
 public class KeySetRetrieverTest {
 	protected static MockIpdServer mockIdpServer;
@@ -58,27 +62,27 @@ public class KeySetRetrieverTest {
 	@Test
 	public void clientCertTest() throws Exception {
 
-		try (MockIpdServer sslMockIdpServer = new MockIpdServer(8085, true) {
+		try (MockIpdServer sslMockIdpServer = new MockIpdServer(8084, true) {
 			@Override
 			protected void handleDiscoverRequest(HttpRequest request, HttpResponse response, HttpContext context)
 					throws HttpException, IOException {
 
-				System.out.println(request);
+				MockIpdServer.SSLTestHttpServerConnection connection = (MockIpdServer.SSLTestHttpServerConnection) ((HttpCoreContext) context)
+						.getConnection();
+
+				X509Certificate peerCert = (X509Certificate) connection.getPeerCertificates()[0];
+
+				try {
+					String sha256Fingerprint = Hashing.sha256().hashBytes(peerCert.getEncoded()).toString();
+
+					Assert.assertEquals("c81a111272028c5e670b96e56bc5660a23b103d7b7962d14122b2a9a021885a2",
+							sha256Fingerprint);
+
+				} catch (CertificateEncodingException e) {
+					throw new RuntimeException(e);
+				}
 
 				super.handleDiscoverRequest(request, response, context);
-
-				/*
-				 * X509Certificate[] certificateChain = (X509Certificate[])
-				 * request.getAttribute("javax.servlet.request.X509Certificate");
-				 * 
-				 * if (certificateChain == null || certificateChain.length == 0 ||
-				 * certificateChain[0] == null) {
-				 * requestContext.abortWith(buildForbiddenResponse("No certificate chain found!"
-				 * )); return; }
-				 * 
-				 * // The certificate of the client is always the first in the chain.
-				 * X509Certificate clientCert = certificateChain[0];
-				 */
 			}
 		}) {
 			SSLContextBuilder sslContextBuilder = SSLContexts.custom();

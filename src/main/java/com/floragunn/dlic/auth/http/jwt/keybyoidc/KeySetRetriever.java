@@ -164,7 +164,7 @@ public class KeySetRetriever implements KeySetProvider {
 
 		long now = System.currentTimeMillis();
 
-		if (this.oidcRequests > 10 && now - lastCacheStatusLog > CACHE_STATUS_LOG_INTERVAL_MS) {
+		if (now - lastCacheStatusLog > CACHE_STATUS_LOG_INTERVAL_MS) {
 			log.info("Cache status for KeySetRetriever:\noidcCacheHits: " + oidcCacheHits + "\noidcCacheHitsValidated: "
 					+ oidcCacheHitsValidated + "\noidcCacheModuleResponses: " + oidcCacheModuleResponses
 					+ "\noidcCacheMisses: " + oidcCacheMisses);

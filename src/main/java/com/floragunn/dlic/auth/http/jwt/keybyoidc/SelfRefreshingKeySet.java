@@ -17,15 +17,17 @@ public class SelfRefreshingKeySet implements KeyProvider {
 	private final KeySetProvider keySetProvider;
 	private final ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 10, 1000, TimeUnit.MILLISECONDS,
 			new LinkedBlockingQueue<Runnable>());
-	private JsonWebKeys jsonWebKeys = new JsonWebKeys();
+	private volatile JsonWebKeys jsonWebKeys = new JsonWebKeys();
 	private boolean refreshInProgress = false;
 	private long refreshCount = 0;
 	private long queuedGetCount = 0;
 	private long recentRefreshCount = 0;
 	private long refreshTime = 0;
 	private Throwable lastRefreshFailure = null;
-	private int requestTimeoutMs = 10000;
-	private int queuedThreadTimeoutMs = 5000;
+	private int requestTimeoutMs = 5000;
+	private int queuedThreadTimeoutMs = 2500;
+	private int refreshRateLimitTimeWindowMs = 10000;
+	private int refreshRateLimitCount = 10;
 
 	public SelfRefreshingKeySet(KeySetProvider refreshFunction) {
 		this.keySetProvider = refreshFunction;
@@ -89,10 +91,10 @@ public class SelfRefreshingKeySet implements KeyProvider {
 			log.debug("performRefresh({})", kid);
 		}
 
-		if (System.currentTimeMillis() - refreshTime < 10000) {
+		if (System.currentTimeMillis() - refreshTime < refreshRateLimitTimeWindowMs) {
 			recentRefreshCount++;
 
-			if (recentRefreshCount > 10) {
+			if (recentRefreshCount > refreshRateLimitCount) {
 				throw new AuthenticatorUnavailableException("Too many unknown kids recently: " + recentRefreshCount);
 			}
 		}
@@ -139,9 +141,6 @@ public class SelfRefreshingKeySet implements KeyProvider {
 
 				}
 			});
-
-			// XXX This is probably not safe, because the future may finish before we reach
-			// this point. We have to use future.get() with a timeout instead
 
 			try {
 				wait(requestTimeoutMs);
@@ -204,5 +203,21 @@ public class SelfRefreshingKeySet implements KeyProvider {
 
 	public long getQueuedGetCount() {
 		return queuedGetCount;
+	}
+
+	public int getRefreshRateLimitTimeWindowMs() {
+		return refreshRateLimitTimeWindowMs;
+	}
+
+	public void setRefreshRateLimitTimeWindowMs(int refreshRateLimitTimeWindowMs) {
+		this.refreshRateLimitTimeWindowMs = refreshRateLimitTimeWindowMs;
+	}
+
+	public int getRefreshRateLimitCount() {
+		return refreshRateLimitCount;
+	}
+
+	public void setRefreshRateLimitCount(int refreshRateLimitCount) {
+		this.refreshRateLimitCount = refreshRateLimitCount;
 	}
 }

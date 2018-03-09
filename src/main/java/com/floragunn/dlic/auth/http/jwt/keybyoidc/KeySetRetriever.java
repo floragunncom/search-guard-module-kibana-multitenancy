@@ -31,7 +31,7 @@ public class KeySetRetriever implements KeySetProvider {
 
 	private String openIdConnectEndpoint;
 	private SSLConfig sslConfig;
-	private int httpTimeoutMs = 10000;
+	private int requestTimeoutMs = 10000;
 	private CacheConfig cacheConfig;
 	private HttpCacheStorage oidcHttpCacheStorage;
 	private int oidcCacheHits = 0;
@@ -58,8 +58,8 @@ public class KeySetRetriever implements KeySetProvider {
 
 			HttpGet httpGet = new HttpGet(uri);
 
-			RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getHttpTimeoutMs())
-					.setConnectTimeout(getHttpTimeoutMs()).setSocketTimeout(getHttpTimeoutMs()).build();
+			RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
+					.setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
 
 			httpGet.setConfig(requestConfig);
 
@@ -93,8 +93,8 @@ public class KeySetRetriever implements KeySetProvider {
 
 			HttpGet httpGet = new HttpGet(openIdConnectEndpoint);
 
-			RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getHttpTimeoutMs())
-					.setConnectTimeout(getHttpTimeoutMs()).setSocketTimeout(getHttpTimeoutMs()).build();
+			RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
+					.setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
 
 			httpGet.setConfig(requestConfig);
 
@@ -136,12 +136,12 @@ public class KeySetRetriever implements KeySetProvider {
 
 	}
 
-	public int getHttpTimeoutMs() {
-		return httpTimeoutMs;
+	public int getRequestTimeoutMs() {
+		return requestTimeoutMs;
 	}
 
-	public void setHttpTimeoutMs(int httpTimeoutMs) {
-		this.httpTimeoutMs = httpTimeoutMs;
+	public void setRequestTimeoutMs(int httpTimeoutMs) {
+		this.requestTimeoutMs = httpTimeoutMs;
 	}
 
 	private void logCacheResponseStatus(HttpCacheContext httpContext) {

@@ -36,6 +36,10 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator implements HTTPAuthenticator
 	private final String jwtUrlParameter;
 	private final String subjectKey;
 	private final String rolesKey;
+	private final int idpRequestTimeoutMs;
+	private final int idpQueuedThreadTimeoutMs;
+	private final int refreshRateLimitTimeWindowMs;
+	private final int refreshRateLimitCount;
 
 	public HTTPJwtKeyByOpenIdConnectAuthenticator(Settings settings, Path configPath) {
 		jwtUrlParameter = settings.get("jwt_url_parameter");
@@ -43,10 +47,25 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator implements HTTPAuthenticator
 		rolesKey = settings.get("roles_key");
 		subjectKey = settings.get("subject_key");
 
+		idpRequestTimeoutMs = settings.getAsInt("idp_request_timeout_ms", 5000);
+		idpQueuedThreadTimeoutMs = settings.getAsInt("idp_queued_thread_timeout_ms", 2500);
+
+		refreshRateLimitTimeWindowMs = settings.getAsInt("refresh_rate_limit_time_window_ms", 10000);
+		refreshRateLimitCount = settings.getAsInt("refresh_rate_limit_count", 10);
+
 		try {
 			keySetRetriever = new KeySetRetriever(settings.get("openid_connect_url"),
 					getSSLConfig(settings, configPath), settings.getAsBoolean("cache_jwks_endpoint", false));
+
+			keySetRetriever.setRequestTimeoutMs(idpRequestTimeoutMs);
+
 			selfRefreshingKeySet = new SelfRefreshingKeySet(keySetRetriever);
+
+			selfRefreshingKeySet.setRequestTimeoutMs(idpRequestTimeoutMs);
+			selfRefreshingKeySet.setQueuedThreadTimeoutMs(idpQueuedThreadTimeoutMs);
+			selfRefreshingKeySet.setRefreshRateLimitTimeWindowMs(refreshRateLimitTimeWindowMs);
+			selfRefreshingKeySet.setRefreshRateLimitCount(refreshRateLimitCount);
+
 			jwtVerifier = new JwtVerifier(selfRefreshingKeySet);
 
 		} catch (Exception e) {

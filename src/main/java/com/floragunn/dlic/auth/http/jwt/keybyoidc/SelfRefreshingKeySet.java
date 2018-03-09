@@ -131,12 +131,12 @@ public class SelfRefreshingKeySet implements KeyProvider {
 							SelfRefreshingKeySet.this.notifyAll();
 						}
 					} catch (Throwable e) {
-						log.warn("KeySetProvider threw error", e);
 						synchronized (SelfRefreshingKeySet.this) {
 							lastRefreshFailure = e;
 							refreshInProgress = false;
 							SelfRefreshingKeySet.this.notifyAll();
 						}
+						log.warn("KeySetProvider threw error", e);
 					}
 
 				}

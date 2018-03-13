@@ -458,7 +458,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 if(complianceConfig.logMetadataOnly()) {
                     msg.addSource(mapper.writeValueAsString(fieldNameValues.keySet()));
                 } else {
-                    if(searchguardIndex.equals(index)) {
+                    if(searchguardIndex.equals(index) && !"tattr".equals(id)) {
                         msg.addSource(mapper.writeValueAsString(fieldNameValues.entrySet().stream()
                                 .collect(Collectors.toMap(entry -> entry.getKey(), entry -> new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)))));
                     } else {

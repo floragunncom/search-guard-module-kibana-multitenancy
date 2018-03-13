@@ -105,12 +105,17 @@ public class SelfRefreshingKeySet implements KeyProvider {
 			log.debug("performRefresh({})", kid);
 		}
 
+		final boolean recentRefresh;
+
 		if (System.currentTimeMillis() - refreshTime < refreshRateLimitTimeWindowMs) {
 			recentRefreshCount++;
+			recentRefresh = true;
 
 			if (recentRefreshCount > refreshRateLimitCount) {
 				throw new AuthenticatorUnavailableException("Too many unknown kids recently: " + recentRefreshCount);
 			}
+		} else {
+			recentRefresh = false;
 		}
 
 		refreshInProgress = true;
@@ -139,9 +144,6 @@ public class SelfRefreshingKeySet implements KeyProvider {
 							jsonWebKeys = newKeys;
 							refreshInProgress = false;
 							lastRefreshFailure = null;
-							recentRefreshCount = 0;
-							refreshTime = System.currentTimeMillis();
-
 							SelfRefreshingKeySet.this.notifyAll();
 						}
 					} catch (Throwable e) {
@@ -151,6 +153,11 @@ public class SelfRefreshingKeySet implements KeyProvider {
 							SelfRefreshingKeySet.this.notifyAll();
 						}
 						log.warn("KeySetProvider threw error", e);
+					} finally {
+						if (!recentRefresh) {
+							recentRefreshCount = 0;
+							refreshTime = System.currentTimeMillis();
+						}
 					}
 
 				}

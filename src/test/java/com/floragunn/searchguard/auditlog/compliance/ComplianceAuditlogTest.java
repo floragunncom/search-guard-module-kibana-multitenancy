@@ -146,6 +146,8 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
 
+        TestAuditlogImpl.clear();
+        
         setup(additionalSettings);
         
         try (TransportClient tc = getInternalTransportClient()) {

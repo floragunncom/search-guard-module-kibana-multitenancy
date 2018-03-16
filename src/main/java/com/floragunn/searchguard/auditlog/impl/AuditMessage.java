@@ -35,7 +35,6 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
@@ -47,6 +46,7 @@ import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.auditlog.AuditLog.Operation;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.dlic.rest.support.Utils;
 
 public final class AuditMessage {
 
@@ -184,24 +184,25 @@ public final class AuditMessage {
         }
     }
 
-    public void addBody(XContentBuilder builder) {
-        if (builder != null) {
-            try {
-                builder.flush();
-                auditInfo.put(REQUEST_BODY, builder.string());
-            } catch (Exception e) {
-                auditInfo.put(REQUEST_BODY, e.toString());
-            }
-        }
-    }
-
-    public void addBody(Tuple<XContentType, BytesReference> xContentTuple) {
+    public void addTupleToRequestBody(Tuple<XContentType, BytesReference> xContentTuple) {
         if (xContentTuple != null) {
             try {
                 auditInfo.put(REQUEST_BODY, XContentHelper.convertToJson(xContentTuple.v2(), false, xContentTuple.v1()));
             } catch (Exception e) {
-                auditInfo.put(REQUEST_BODY, e.toString());
+                auditInfo.put(REQUEST_BODY, "ERROR: Unable to convert to json because of "+e.toString());
             }
+        }
+    }
+    
+    public void addMapToRequestBody(Map<String, Object> map) {
+        if(map != null) {
+            auditInfo.put(REQUEST_BODY, Utils.convertStructuredMapToJson(map));
+        }
+    }
+    
+    public void addUnescapedJsonToRequestBody(String source) {
+        if (source != null) {
+            auditInfo.put(REQUEST_BODY, source);
         }
     }
 
@@ -232,12 +233,6 @@ public final class AuditMessage {
     public void addType(String type) {
         if (type != null) {
             auditInfo.put(TYPES, new String[] { type });
-        }
-    }
-
-    public void addSource(String source) {
-        if (source != null) {
-            auditInfo.put(REQUEST_BODY, source);
         }
     }
 

@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -24,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
@@ -41,13 +42,13 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.elasticsearch.index.reindex.ReindexRequest;
@@ -57,9 +58,12 @@ import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.WildcardMatcher;
 
 public final class RequestResolver {
+    
+    private static final Logger log = LogManager.getLogger(RequestResolver.class);
     
     public static List<AuditMessage> resolve(
             final Category category, 
@@ -203,16 +207,16 @@ public final class RequestResolver {
             final String id = item.id();
             msg.addType(type);
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof CreateIndexRequest) {
             final CreateIndexRequest cir = (CreateIndexRequest) request;
             final String[] indices = arrayOrEmpty(cir.indices());
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof DeleteIndexRequest) {
             final DeleteIndexRequest dir = (DeleteIndexRequest) request;
             final String[] indices = arrayOrEmpty(dir.indices());
             //dir id alle id's beim schreiben protokolloieren
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof IndexRequest) {
             final IndexRequest ir = (IndexRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
@@ -221,7 +225,7 @@ public final class RequestResolver {
             msg.addShardId(ir.shardId());
             msg.addType(type);
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, cs, ir.source(), settings, resolveIndices, logRequestBody, true, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, ir.getContentType(), ir.source(), settings, resolveIndices, logRequestBody, true, searchguardIndex);
         } else if (request instanceof DeleteRequest) {
             final DeleteRequest dr = (DeleteRequest) request;
             final String[] indices = arrayOrEmpty(dr.indices());
@@ -230,7 +234,7 @@ public final class RequestResolver {
             msg.addShardId(dr.shardId());
             msg.addType(type);
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof UpdateRequest) {
             final UpdateRequest ur = (UpdateRequest) request;
             final String[] indices = arrayOrEmpty(ur.indices());
@@ -238,15 +242,15 @@ public final class RequestResolver {
             final String id = ur.id();
             msg.addType(type);
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
             if(logRequestBody) {
 
                 if (ur.doc() != null) {
-                    msg.addSource(ur.doc() == null ? null :sourceToString(ur.doc().source()));
+                    msg.addTupleToRequestBody(ur.doc() == null ? null :convertSource(ur.doc().getContentType(), ur.doc().source()));
                 }
     
-                if (ur.script() != null) {
-                    msg.addSource(ur.script() == null ? null : Strings.toString(ur.script()));
+                if (ur.script() != null) {                   
+                    msg.addMapToRequestBody(ur.script() == null ? null : Utils.convertJsonToxToStructuredMap(ur.script()));
                 }
             }
         } else if (request instanceof GetRequest) {
@@ -256,34 +260,43 @@ public final class RequestResolver {
             final String id = gr.id();
             msg.addType(type);
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof SearchRequest) {
             final SearchRequest sr = (SearchRequest) request;
             final String[] indices = arrayOrEmpty(sr.indices());
             final String[] types = arrayOrEmpty(sr.types());
             msg.addTypes(types);
-            XContentBuilder builder = null;
-            try {
-                if(sr.source() != null) {
-                    builder = XContentFactory.jsonBuilder();
-                    sr.source().toXContent(builder, ToXContent.EMPTY_PARAMS);
-                }
-            } catch (IOException e) {
-                builder = null;
-            } finally {
-                if(builder != null) {
-                    builder.close();
-                }
-            }
-            addIndicesSourceSafe(msg, indices, resolver, cs, builder == null? null:builder.bytes(), settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            Map<String, Object> sourceAsMap = sr.source() == null? null:Utils.convertJsonToxToStructuredMap(sr.source());
+            addIndicesSourceSafe(msg, indices, resolver, cs, XContentType.JSON, sourceAsMap, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof ClusterUpdateSettingsRequest) {
             if(logRequestBody) {
                 final ClusterUpdateSettingsRequest cusr = (ClusterUpdateSettingsRequest) request;
                 final Settings persistentSettings = cusr.persistentSettings();
                 final Settings transientSettings = cusr.transientSettings();
-                msg.addSource("persistent: "+String.valueOf(persistentSettings == null?Collections.EMPTY_MAP:persistentSettings.toString())
-                             +";transient: "+String.valueOf(transientSettings == null?Collections.EMPTY_MAP:transientSettings.toString()));  
-            }
+                
+                XContentBuilder builder = null;
+                try {
+                    
+                    builder = XContentFactory.jsonBuilder();
+                    builder.startObject();
+                    if(persistentSettings != null) {
+                        builder.field("persistent_settings", Utils.convertJsonToxToStructuredMap(persistentSettings));
+                    }
+                    if(transientSettings != null) {
+                        builder.field("transient_settings", Utils.convertJsonToxToStructuredMap(persistentSettings));
+                    }
+                    builder.endObject();
+                    msg.addUnescapedJsonToRequestBody(builder == null?null:builder.string());
+                } catch (IOException e) {
+                    log.error(e);
+                } finally {
+                    if(builder != null) {
+                        builder.close();
+                    }
+                }
+                
+               
+             }
         } else if (request instanceof ReindexRequest) {
             final IndexRequest ir = ((ReindexRequest) request).getDestination();
             final String[] indices = arrayOrEmpty(ir.indices());
@@ -292,15 +305,15 @@ public final class RequestResolver {
             msg.addShardId(ir.shardId());
             msg.addType(type);
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, cs, ir.source(), settings, resolveIndices, logRequestBody, true, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, ir.getContentType(), ir.source(), settings, resolveIndices, logRequestBody, true, searchguardIndex);
         } else if (request instanceof DeleteByQueryRequest) {
             final DeleteByQueryRequest ir = (DeleteByQueryRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof UpdateByQueryRequest) {
             final UpdateByQueryRequest ir = (UpdateByQueryRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof PutMappingRequest) {
             final PutMappingRequest pr = (PutMappingRequest) request;
             final Index ci = pr.getConcreteIndex();
@@ -313,7 +326,7 @@ public final class RequestResolver {
             }
             
             if(logRequestBody) {
-                msg.addSource(pr.source());
+                msg.addUnescapedJsonToRequestBody(pr.source());
             }
             
             if(resolveIndices) {
@@ -322,7 +335,7 @@ public final class RequestResolver {
         } else if (request instanceof IndicesRequest) { //less specific
             final IndicesRequest ir = (IndicesRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         }
         
         return msg;
@@ -331,8 +344,9 @@ public final class RequestResolver {
     private static void addIndicesSourceSafe(final AuditMessage msg, 
             final String[] indices, 
             final IndexNameExpressionResolver resolver, 
-            final ClusterService cs, 
-            final BytesReference source,
+            final ClusterService cs,
+            final XContentType xContentType,
+            final Object source,
             final Settings settings,
             boolean resolveIndices,
             final boolean addSource,
@@ -368,25 +382,28 @@ public final class RequestResolver {
         if(addSource) {
             if(sourceIsSensitive && source != null) {   
                 if(!WildcardMatcher.matchAny(allIndices.toArray(new String[0]), searchguardIndex)) {
-                    msg.addSource(sourceToString(source));
+                    if(source instanceof BytesReference) {
+                       msg.addTupleToRequestBody(convertSource(xContentType, (BytesReference) source));
+                    } else {
+                        msg.addMapToRequestBody((Map) source);
+                    }
                 }
-            } else if(source != null){
-                msg.addSource(sourceToString(source));
+            } else if(source != null) {
+                if(source instanceof BytesReference) {
+                    msg.addTupleToRequestBody(convertSource(xContentType, (BytesReference) source));
+                 } else {
+                     msg.addMapToRequestBody((Map) source);
+                 }
             }
         }
     }
     
-    private static String sourceToString(BytesReference source) {
-
-        if (source == null) {
-            return "";
+    private static Tuple<XContentType, BytesReference> convertSource(XContentType type, BytesReference bytes) {
+        if(type == null) {
+            type = XContentType.JSON;
         }
-
-        try {
-            return source.utf8ToString();
-        } catch (Exception e) {
-            return new String(BytesReference.toBytes(source), StandardCharsets.UTF_8);
-        }
+        
+        return new Tuple<XContentType, BytesReference>(type, bytes);
     }
     
     private static String[] arrayOrEmpty(String[] array) {

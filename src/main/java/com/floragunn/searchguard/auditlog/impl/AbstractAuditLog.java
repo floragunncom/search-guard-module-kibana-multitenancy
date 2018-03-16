@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -35,18 +36,17 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.Engine.Delete;
 import org.elasticsearch.index.engine.Engine.DeleteResult;
@@ -59,13 +59,13 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flipkart.zjsonpatch.JsonDiff;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
+import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
@@ -229,7 +229,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBody(request.contentOrSourceParam());
         }
 
         if(request != null) {
@@ -271,7 +271,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
-           msg.addBody(request.contentOrSourceParam());
+           msg.addTupleToRequestBody(request.contentOrSourceParam());
         }
 
         if(request != null) {
@@ -296,7 +296,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
-           msg.addBody(request.contentOrSourceParam());
+           msg.addTupleToRequestBody(request.contentOrSourceParam());
         }
         if(request != null) {
             msg.addPath(request.path());
@@ -366,7 +366,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBody(request.contentOrSourceParam());
         }
         if(request != null) {
             msg.addPath(request.path());
@@ -421,7 +421,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBody(request.contentOrSourceParam());
         }
 
         if(request != null) {
@@ -456,16 +456,26 @@ public abstract class AbstractAuditLog implements AuditLog {
 
             try {
                 if(complianceConfig.logMetadataOnly()) {
-                    msg.addSource(mapper.writeValueAsString(fieldNameValues.keySet()));
+                    try {
+                        XContentBuilder builder = XContentBuilder.builder(JsonXContent.jsonXContent);
+                        builder.startObject();
+                        builder.field("field_names", fieldNameValues.keySet());
+                        builder.endObject();
+                        builder.close();
+                        msg.addUnescapedJsonToRequestBody(builder.string());
+                    } catch (IOException e) {
+                        log.error(e.toString(), e);
+                    }
                 } else {
                     if(searchguardIndex.equals(index) && !"tattr".equals(id)) {
-                        msg.addSource(mapper.writeValueAsString(fieldNameValues.entrySet().stream()
-                                .collect(Collectors.toMap(entry -> entry.getKey(), entry -> new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)))));
-                    } else {
-                        msg.addSource(mapper.writeValueAsString(fieldNameValues));
-                    }
+                        Map<String, String> map = fieldNameValues.entrySet().stream()
+                        .collect(Collectors.toMap(entry -> "id", entry -> new String(BaseEncoding.base64().decode(((Entry<String, String>) entry).getValue()), StandardCharsets.UTF_8)));
+                        msg.addMapToRequestBody(Utils.convertJsonToxToStructuredMap(map.get("id")));                      
+                     } else {
+                        msg.addMapToRequestBody(new HashMap<String, Object>(fieldNameValues));
+                     }
                 }
-            } catch (JsonProcessingException e) {
+            } catch (Exception e) {
                 log.error("Unable to generate request body for {} and {}",msg.toPrettyString(),fieldNameValues, e);
             }
 
@@ -550,15 +560,15 @@ public abstract class AbstractAuditLog implements AuditLog {
                     try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, currentIndex.source(), XContentType.JSON)) {
                        Object base64 = parser.map().values().iterator().next();
                        if(base64 instanceof String) {
-                           msg.addSource(new String(BaseEncoding.base64().decode((String) base64)));
+                           msg.addUnescapedJsonToRequestBody(new String(BaseEncoding.base64().decode((String) base64)));
                         } else {
-                           msg.addBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+                           msg.addTupleToRequestBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
                        }
                     } catch (Exception e) {
                         log.error(e);
                     }
                 } else {
-                    msg.addBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+                    msg.addTupleToRequestBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
                 }
                 
             }
@@ -596,7 +606,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return;
         }
 
-        final String configAsString = Strings.toString(settings);
+        final Map<String, Object> configAsMap = Utils.convertJsonToxToStructuredMap(settings);
         
         final SecurityManager sm = System.getSecurityManager();
         
@@ -611,27 +621,27 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         });
         
-        final String propsAsString = AccessController.doPrivileged(new PrivilegedAction<String>() {
+        final Map propsAsMap = AccessController.doPrivileged(new PrivilegedAction<Map>() {
             @Override
-            public String run() {
-                return String.valueOf(System.getProperties());
+            public Map run() {
+                return System.getProperties();
             }
         });
 
-        final String sha256 = DigestUtils.sha256Hex(configAsString+envAsString+propsAsString);
+        final String sha256 = DigestUtils.sha256Hex(configAsMap.toString()+envAsString+propsAsMap.toString());
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_EXTERNAL_CONFIG, clusterService, null, null);
         
         try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
             builder.startObject();
             builder.startObject("external_configuration");
-            builder.field("elasticsearch_yml", configAsString);
+            builder.field("elasticsearch_yml", configAsMap);
             builder.field("os_environment", envAsString);
-            builder.field("java_properties", propsAsString);
+            builder.field("java_properties", propsAsMap);
             builder.field("sha256_checksum", sha256);
             builder.endObject();
             builder.endObject();
-            msg.addBody(builder);
-            System.out.println("add "+builder.string());
+            builder.close();
+            msg.addUnescapedJsonToRequestBody(builder.string());
         } catch (Exception e) {
             log.error("Unable to build message",e);
         }

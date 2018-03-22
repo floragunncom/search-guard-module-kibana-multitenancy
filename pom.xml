@@ -26,7 +26,7 @@
 
   <properties>
     <sg2.version>6.x-HEAD-SNAPSHOT</sg2.version>
-    <elasticsearch.version>6.2.0</elasticsearch.version>
+    <elasticsearch.version>6.2.2</elasticsearch.version>
     
     <!-- deps -->
     <log4j.version>2.9.1</log4j.version>
@@ -107,6 +107,13 @@
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>fluent-hc</artifactId>
     </dependency>
+    
+    <dependency>
+    <groupId>org.apache.httpcomponents</groupId>
+    <artifactId>httpclient-cache</artifactId>
+    <version>4.5.3</version>
+	</dependency>
+    
 
     <dependency>
       <groupId>org.elasticsearch.client</groupId>
@@ -131,6 +138,14 @@
         </exclusion>
       </exclusions>
     </dependency>
+    
+    <dependency>
+      <groupId>org.apache.cxf</groupId>
+      <artifactId>cxf-rt-rs-security-jose</artifactId>
+      <version>3.2.2</version>
+    </dependency>
+
+
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -227,6 +242,7 @@
       <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
+    
   </dependencies>
 
   <build>

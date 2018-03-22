@@ -67,7 +67,7 @@ sg_kibana_server:
   users:
     - kibanaserver
 
-sg_kibana4:
+sg_kibana:
   users:
     - kibanaro
 

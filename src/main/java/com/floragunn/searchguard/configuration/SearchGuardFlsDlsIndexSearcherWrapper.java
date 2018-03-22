@@ -16,20 +16,20 @@ package com.floragunn.searchguard.configuration;
 
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.FilterDirectoryReader;
 import org.apache.lucene.search.IndexSearcher;
+import org.elasticsearch.common.lucene.index.ElasticsearchDirectoryReader;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.engine.EngineException;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.query.QueryShardContext;
+import org.elasticsearch.index.shard.ShardId;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
@@ -38,45 +38,14 @@ import com.google.common.collect.Sets;
 
 public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearcherWrapper {
 
-    private final QueryShardContext queryShardContext;
+    private final IndexService indexService;
     private static final Set<String> metaFields = Sets.union(Sets.newHashSet("_source", "_version"), 
             Sets.newHashSet(MapperService.getAllMetaFields()));
     private final NamedXContentRegistry namedXContentRegistry;
 
-    private static void printLicenseInfo() {
-        final StringBuilder sb = new StringBuilder();
-        sb.append("******************************************************"+System.lineSeparator());
-        sb.append("Searchguard DLS/FLS(+) Security is not free software"+System.lineSeparator());
-        sb.append("for commercial use in production."+System.lineSeparator());
-        sb.append("You have to obtain a license if you "+System.lineSeparator());
-        sb.append("use it in production."+System.lineSeparator());
-        sb.append("(+) Document-/Fieldlevel"+System.lineSeparator());
-        sb.append(System.lineSeparator());
-        sb.append("See https://floragunn.com/searchguard-validate-license"+System.lineSeparator());
-        sb.append("In case of any doubt mail to <sales@floragunn.com>"+System.lineSeparator());
-        sb.append("*****************************************************"+System.lineSeparator());
-        
-        final String licenseInfo = sb.toString();
-        
-        if(!Boolean.getBoolean("sg.display_lic_none")) {
-            
-            if(!Boolean.getBoolean("sg.display_lic_only_stdout")) {
-                LogManager.getLogger(SearchGuardFlsDlsIndexSearcherWrapper.class).warn(licenseInfo);
-                System.err.println(licenseInfo);
-            }
-    
-            System.out.println(licenseInfo);
-        }
-        
-    }
-
-    static {
-        //printLicenseInfo();
-    }
-
     public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings, final AdminDNs adminDNs) {
         super(indexService, settings, adminDNs);
-        this.queryShardContext = indexService.newQueryShardContext(0, null, () -> 0L, null);
+        this.indexService = indexService;
         this.namedXContentRegistry = indexService.xContentRegistry();
     }
 
@@ -103,6 +72,11 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
         if (dlsEval != null) { 
             unparsedDlsQueries = queries.get(dlsEval);
         }
+        
+        final ShardId shardId = ((ElasticsearchDirectoryReader)((FilterDirectoryReader) reader).getDelegate()).shardId();
+        
+        final QueryShardContext queryShardContext = 
+                indexService.newQueryShardContext(shardId.getId(), reader, () -> 0L, null);
         
         return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields, DlsQueryParser.parse(unparsedDlsQueries, queryShardContext, this.namedXContentRegistry));
     }

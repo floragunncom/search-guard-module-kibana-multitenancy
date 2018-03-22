@@ -66,6 +66,26 @@ sg_dls_without_field_perm:
                     }
                  }
                  
+sg_combined:
+  cluster:
+    - '*'
+  indices:
+    'deals':
+       '*':  
+         - READ
+       _fls_:
+         - 'customer.*'
+         - amount
+       _dls_: | 
+                 {
+                   "range" : {
+                      "amount" : {
+                          "gte" : 1000,
+                          "lte" : 20000
+                      }
+                    }
+                 }
+                 
 sg_dls_multi1:
   cluster:
     - '*'

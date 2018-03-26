@@ -33,6 +33,8 @@
     <jjwt.version>0.9.0</jjwt.version>
     <ldaptive.version>1.1.0-fg-fork1</ldaptive.version>
     <jackson-databind.version>2.8.11</jackson-databind.version>
+    <http.commons.version>4.5.3</http.commons.version>
+    <cxf.version>3.2.2</cxf.version>
     
     <!-- Test only -->
     <mockito.version>1.10.19</mockito.version>
@@ -106,12 +108,13 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>fluent-hc</artifactId>
+      <version>${http.commons.version}</version>
     </dependency>
     
     <dependency>
     <groupId>org.apache.httpcomponents</groupId>
     <artifactId>httpclient-cache</artifactId>
-    <version>4.5.3</version>
+    <version>${http.commons.version}</version>
 	</dependency>
     
 
@@ -142,10 +145,8 @@
     <dependency>
       <groupId>org.apache.cxf</groupId>
       <artifactId>cxf-rt-rs-security-jose</artifactId>
-      <version>3.2.2</version>
+      <version>${cxf.version}</version>
     </dependency>
-
-
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -193,13 +194,6 @@
       <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
-
-    <!-- <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
-      <version>1.7.7</version>
-      <scope>test</scope>
-    </dependency>  -->
 
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>

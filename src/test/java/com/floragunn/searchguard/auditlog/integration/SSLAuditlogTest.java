@@ -57,7 +57,8 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
         response = rh.executeGetRequest("sg6-auditlog*/_search", encodeBasicHeader("admin", "admin"));
         System.out.println(response.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        assertContains(response, "*\"hits\":{\"total\":1,*");
+        assertNotContains(response, "*\"hits\":{\"total\":0,*");
+        assertContains(response, "*\"failed\":0},\"hits\":*");
 
     }
 
@@ -88,7 +89,8 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
         System.out.println(response.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(response.getBody());
-        assertContains(response, "*\"hits\":{\"total\":4,*");
+        assertNotContains(response, "*\"hits\":{\"total\":0,*");
+        assertContains(response, "*\"failed\":0},\"hits\":*");
     }
 
     @Test
@@ -117,6 +119,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
         response = rh.executeGetRequest("sg6-auditlog-*/_search", encodeBasicHeader("admin", "admin"));
         System.out.println(response.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        assertContains(response, "*\"hits\":{\"total\":1,*");
+        assertNotContains(response, "*\"hits\":{\"total\":0,*");
+        assertContains(response, "*\"failed\":0},\"hits\":*");
     }
 }

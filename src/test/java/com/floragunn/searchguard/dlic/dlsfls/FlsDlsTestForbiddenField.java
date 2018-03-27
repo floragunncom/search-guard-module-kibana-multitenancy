@@ -156,4 +156,21 @@ public class FlsDlsTestForbiddenField extends AbstractDlsFlsTest{
         Assert.assertTrue(res.getBody().contains("\"count\" : 0,"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));  
     }
+    
+    @Test
+    public void testCombined() throws Exception {
+        
+        setup();
+        
+        HttpResponse res;
+        
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_search?pretty", encodeBasicHeader("user_combined", "password"))).getStatusCode());
+        System.out.println(res.getBody());
+        Assert.assertTrue(res.getBody().contains("\"total\" : 1,\n    \"max_"));
+        Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+        Assert.assertTrue(res.getBody().contains("customer"));
+        Assert.assertTrue(res.getBody().contains("industry"));
+        Assert.assertFalse(res.getBody().contains("zip"));
+        Assert.assertFalse(res.getBody().contains("cust1"));
+    }
 }

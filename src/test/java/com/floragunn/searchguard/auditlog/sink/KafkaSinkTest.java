@@ -9,6 +9,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
 
@@ -17,6 +18,7 @@ import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
+@Ignore("not for beta 1")
 public class KafkaSinkTest extends AbstractAuditlogiUnitTest {
 	
 	static boolean running = true;

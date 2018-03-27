@@ -1,6 +1,7 @@
 sg_all_access:
   users:
     - admin
+    - user_combined
     
 sg_public:
   users:
@@ -68,3 +69,7 @@ sg_aaa:
 sg_bbb:
   users:
     - user_bbb
+
+sg_combined:
+  users:
+    - user_combined

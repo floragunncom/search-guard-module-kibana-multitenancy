@@ -652,6 +652,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:admin/close"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:admin/delete"));
-        Assert.assertEquals(4, TestAuditlogImpl.messages.size());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.messages.size() >= 2);
     }
 }

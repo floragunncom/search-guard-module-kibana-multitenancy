@@ -6,7 +6,7 @@
 This module for [Search Guard 5](https://github.com/floragunncom/search-guard) adds true multi-tenancy capabilities to Kibana. Multitenancy works with ES 5.0.2 and higher.
 
 ## Search Guard 6 and higher
-For Elasticsearch 6 this module comes already bundled with Search Guard 6. The 6.x source repository for this module is here https://github.com/floragunncom/search-guard-enterprise-modules. This repositor only contains code for Elasticsearch 5.x.
+For Elasticsearch 6 this module comes already bundled with Search Guard 6. No need to download it separately.
 
 ## Documentation
 

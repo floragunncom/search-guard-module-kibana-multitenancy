@@ -14,13 +14,11 @@ This module for [Search Guard ](https://github.com/floragunncom/search-guard) ad
 * Kibana multi tenancy module
 
 ## Documentation
-
 Please refer to the official Search Guard documentation for installation and configuration instructions:
-
 [Search Guard Enterprise Modules](http://docs.search-guard.com/latest/enterprise-modules)
 
 ## Commercial use
-This software is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a [license](https://floragunn.com/searchguard/searchguard-license-support/). 
+This software is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a [license](https://search-guard.com/licensing/). 
 
 ## License
 Copyright 2016-2018 by floragunn GmbH - All rights reserved 

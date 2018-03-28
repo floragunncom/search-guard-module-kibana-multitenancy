@@ -3,7 +3,7 @@
 ![Logo](https://raw.githubusercontent.com/floragunncom/sg-assets/master/logo/sg_dlic_small.png) 
 
 ## About this module
-This module for [Search Guard ](https://github.com/floragunncom/search-guard) adds the following enterprise features:
+This module for [Search Guard 6](https://github.com/floragunncom/search-guard) adds the following enterprise features:
 
 * Active Directory and LDAP Authentication/Authorisation
 * Kerberos/SPNEGO Authentication/Authorisation

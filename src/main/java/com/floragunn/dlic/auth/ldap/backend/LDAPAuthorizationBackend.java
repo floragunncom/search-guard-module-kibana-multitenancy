@@ -26,6 +26,8 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
+import java.time.temporal.TemporalUnit;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -313,11 +315,11 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
         config.setUseSSL(enableSSL);
         config.setUseStartTLS(enableStartTLS);
         
-        final long connectTimeout = settings.getAsLong(ConfigConstants.LDAP_CONNECT_TIMEOUT, 5000L);
-        final long responseTimeout = settings.getAsLong(ConfigConstants.LDAP_RESPONSE_TIMEOUT, -1L);
+        final long connectTimeout = settings.getAsLong(ConfigConstants.LDAP_CONNECT_TIMEOUT, 5000L); //0L means TCP default timeout
+        final long responseTimeout = settings.getAsLong(ConfigConstants.LDAP_RESPONSE_TIMEOUT, 0L); //0L means wait infinitely
         
-        config.setConnectTimeout(connectTimeout); // 5 sec by default
-        config.setResponseTimeout(responseTimeout);
+        config.setConnectTimeout(Duration.ofMillis(connectTimeout<0L?0L:connectTimeout)); // 5 sec by default
+        config.setResponseTimeout(Duration.ofMillis(responseTimeout<0L?0L:responseTimeout));
 
         if(log.isDebugEnabled()) {
             log.debug("Connect timeout: "+config.getConnectTimeout()+"/ResponseTimeout: "+config.getResponseTimeout());

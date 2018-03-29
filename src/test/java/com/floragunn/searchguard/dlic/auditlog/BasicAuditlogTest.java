@@ -167,7 +167,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         Thread.sleep(1500);
         System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertEquals(2, TestAuditlogImpl.messages.size());
+        Assert.assertTrue(String.valueOf(TestAuditlogImpl.messages.size()), TestAuditlogImpl.messages.size() >= 2);
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
@@ -176,7 +176,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("REST"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
         Assert.assertEquals(TestAuditlogImpl.messages.get(0).getAsMap().get(AuditMessage.TASK_ID),
-                TestAuditlogImpl.messages.get(1).getAsMap().get(AuditMessage.TASK_ID));
+        TestAuditlogImpl.messages.get(1).getAsMap().get(AuditMessage.TASK_ID));
     }
     
     @Test

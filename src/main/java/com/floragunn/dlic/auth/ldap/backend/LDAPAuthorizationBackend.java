@@ -128,6 +128,7 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
         final List<String> ldapHosts = settings.getAsList(ConfigConstants.LDAP_HOSTS, Collections.singletonList("localhost"));
 
         Connection connection = null;
+        Exception lastException = null;
 
         for (String ldapHost: ldapHosts) {
             
@@ -197,6 +198,7 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
                     break;
                 }
             } catch (final Exception e) {
+                lastException = e;
                 log.warn("Unable to connect to ldapserver {} due to {}. Try next.", ldapHost, e.toString());
                 if(log.isDebugEnabled()) {
                     log.debug("Unable to connect to ldapserver due to ",e);
@@ -207,7 +209,11 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
         }
 
         if (connection == null || !connection.isOpen()) {
-            throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts);
+            if(lastException == null) {
+                throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts);
+            } else {
+                throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts + " due to "+lastException, lastException);
+            }
         }
 
         return connection;

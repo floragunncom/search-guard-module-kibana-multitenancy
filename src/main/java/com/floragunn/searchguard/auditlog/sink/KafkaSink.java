@@ -1,8 +1,26 @@
+/*
+ * Copyright 2016-2018 by floragunn GmbH - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.searchguard.auditlog.sink;
 
+import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Properties;
-import java.util.concurrent.Future;
 
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -10,73 +28,106 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
 public class KafkaSink extends AuditLogSink {
 
-	boolean valid = true;
+    private final String[] mandatoryProperties = new String []{"bootstrap_servers","topic_name"};
+	private boolean valid = true;
 	private Producer<Long, String> producer;
-	private final String topicName;
+	private String topicName;
 
 	public KafkaSink(final String name, final Settings settings, final Settings sinkSettings, AuditLogSink fallbackSink) {
 		super(name, settings, sinkSettings, fallbackSink);
 
-		// mandatory configuration values
-		this.topicName = getMandatoryConfigEntry("topic_name");
-		String bootstrapServers = getMandatoryConfigEntry("bootstrap_servers");
-		String clientId = getMandatoryConfigEntry("client_id");
+		checkMandatorySinkSettings();
 
 		if (!valid) {
 			log.error("Failed to configure Kafka producer, please check the logfile.");
 			return;
 		}
 		
-		// timeouts?
-		
-		Properties props = new Properties();
-		props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-		// props.put(ProducerConfig.CLIENT_ID_CONFIG, clientId);
-		// or node id!
-		props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getName());
-		props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        final Properties producerProps = new Properties();
+        
+        for(String key: sinkSettings.names()) {
+            producerProps.put(key.replace('_', '.'), sinkSettings.get(key));
+        }
+        
+		producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getName());
+		producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+		topicName = sinkSettings.get("topic_name");
 
-		// SSL and / or Kerberos
-		this.producer = new KafkaProducer<>(props);
+		//map path of
+		//ssl.keystore.location
+		//ssl.truststore.location
+		//sasl.kerberos.kinit.cmd		
+		
+		final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+        
+        try {
+            this.producer = AccessController.doPrivileged(new PrivilegedExceptionAction<KafkaProducer<Long, String>>() {
+                @Override
+                public KafkaProducer<Long, String> run() throws Exception {
+                    return new KafkaProducer<Long, String>(producerProps);
+                }
+            });
+        } catch (PrivilegedActionException e) {
+            log.error("Failed to configure Kafka producer due to {}", e.getException(), e.getException());
+            this.valid = false;
+        }
 
 	}
 
 	@Override
 	protected boolean doStore(AuditMessage msg) {
-		if (!valid) {
+		if (!valid || producer == null) {
 			return false;
 		}
+		
 		ProducerRecord<Long, String> data = new ProducerRecord<Long, String>(topicName, msg.toJson());
-		try {
-			Future<RecordMetadata> meta = producer.send(data);
-			meta.get();
-		} catch (Exception e) {
-			log.error("Could not store message on Kafka topic {}", this.topicName, e);
-			return false;
-		}
+		producer.send(data, new Callback() {
+            
+            @Override
+            public void onCompletion(RecordMetadata metadata, Exception exception) {
+               if(exception == null) {
+                   //log trace?
+               } else {
+                   log.error("Could not store message on Kafka topic {}", topicName, exception);
+                   fallbackSink.store(msg);
+               }
+                
+            }
+        });
 		return true;
 	}
 
 	@Override
 	public boolean isHandlingBackpressure() {
-		// we use our own thread pool.
-		// TODO: make that configurable. But we then loose the ability of properly logging the message into the fallback queue.
-		return false;
+		return true;
 	}
 
-	private String getMandatoryConfigEntry(String key) {
-		String value = sinkSettings.get(key);
-		if (value == null || value.length() == 0) {
-			log.error("No value for {} provided in configuration, this endpoint will not work.", key);
-			this.valid = false;
-		}
-		return value;
+	private void checkMandatorySinkSettings() {
+	    for(String mandatory: mandatoryProperties) {
+	        String value = sinkSettings.get(mandatory);
+	        if (value == null || value.length() == 0) {
+	            log.error("No value for {} provided in configuration, this endpoint will not work.", value);
+	            this.valid = false;
+	        }
+	    }
 	}
 
+    @Override
+    public void close() throws IOException {
+        if(producer != null) {
+            valid = false;
+            producer.close();
+        }
+    }
 }

@@ -441,7 +441,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         
         String effectiveUser = getUser();
 
-        if(!checkComplianceFilter(category, effectiveUser)) {
+        if(!checkComplianceFilter(category, effectiveUser, getOrigin())) {
             return;
         }
 
@@ -491,7 +491,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         String effectiveUser = getUser();
 
-        if(!checkComplianceFilter(category, effectiveUser)) {
+        if(!checkComplianceFilter(category, effectiveUser, getOrigin())) {
             return;
         }
 
@@ -581,7 +581,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         String effectiveUser = getUser();
 
-        if(!checkComplianceFilter(Category.COMPLIANCE_DOC_WRITE, effectiveUser)) {
+        if(!checkComplianceFilter(Category.COMPLIANCE_DOC_WRITE, effectiveUser, getOrigin())) {
             return;
         }
 
@@ -602,7 +602,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logExternalConfig(Settings settings, Environment environment) {
 
-        if(!checkComplianceFilter(Category.COMPLIANCE_EXTERNAL_CONFIG, null)) {
+        if(!checkComplianceFilter(Category.COMPLIANCE_EXTERNAL_CONFIG, null, getOrigin())) {
             return;
         }
 
@@ -765,11 +765,18 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     }
 
-    private boolean checkComplianceFilter(final Category category, final String effectiveUser) {
+    private boolean checkComplianceFilter(final Category category, final String effectiveUser, Origin origin) {
         if(log.isTraceEnabled()) {
-            log.trace("Check for REST category:{}, effectiveUser:{}", category, effectiveUser);
+            log.trace("Check for COMPLIANCE category:{}, effectiveUser:{}, origin: {}", category, effectiveUser, origin);
         }
 
+        if(origin == Origin.LOCAL && effectiveUser == null && category != Category.COMPLIANCE_EXTERNAL_CONFIG) {
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped compliance log message because of null user and local origin");
+            }
+            return false;
+        }
+        
         if(category == Category.COMPLIANCE_DOC_READ) {
             if (ignoredComplianceUsersForRead.size() > 0 && effectiveUser != null
                     && WildcardMatcher.matchAny(ignoredComplianceUsersForRead, effectiveUser)) {

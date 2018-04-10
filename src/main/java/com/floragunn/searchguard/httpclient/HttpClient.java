@@ -25,13 +25,13 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
-import javax.xml.bind.DatatypeConverter;
 
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
@@ -116,7 +116,7 @@ public class HttpClient implements Closeable {
         }
         
         private static String encodeBasicHeader(final String username, final String password) {
-            return new String(DatatypeConverter.printBase64Binary((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
+            return Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8));
         }
 
     }

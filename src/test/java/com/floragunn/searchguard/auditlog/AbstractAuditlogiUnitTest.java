@@ -14,9 +14,14 @@
 
 package com.floragunn.searchguard.auditlog;
 
+import java.util.Collection;
+
 import org.apache.http.Header;
 import org.elasticsearch.common.settings.Settings;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
@@ -24,6 +29,7 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper;
 
 public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
     protected RestHelper rh = null;
     protected boolean init = true;
     
@@ -63,4 +69,36 @@ public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
         rh.keystore = keystore;
     }
 
+    protected boolean validateMsgs(final Collection<AuditMessage> msgs) {
+        boolean valid = true;
+        for(AuditMessage msg: msgs) {
+            valid = validateMsg(msg) && valid;
+        }
+        return valid;
+    }
+    
+    protected boolean validateMsg(final AuditMessage msg) {
+        return validateJson(msg.toJson()) && validateJson(msg.toPrettyString());
+    }
+    
+    protected boolean validateJson(final String json) {
+        
+        if(json == null || json.isEmpty()) {
+            return false;
+        }
+        
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            
+            if(node.get("audit_request_body") != null) {
+                System.out.println("    Check audit_request_body for validity: "+node.get("audit_request_body").asText());
+                objectMapper.readTree(node.get("audit_request_body").asText());
+            }
+            
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }

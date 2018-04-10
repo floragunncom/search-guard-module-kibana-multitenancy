@@ -80,6 +80,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Designation"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Salary"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("Gender"));
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
 
     @Test
@@ -128,7 +129,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("eyJzZ19hbGx"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("dvcmYiOnsiY2x"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("\\\"op\\\":\\\"remove\\\",\\\"path\\\":\\\"/sg_worf\\\""));
-        
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
     
     @Test
@@ -168,6 +169,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("external_configuration"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_EXTERNAL_CONFIG"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("elasticsearch_yml"));
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
 
     @Test
@@ -206,5 +208,6 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         System.out.println(response.getBody());
         Thread.sleep(1500);
         Assert.assertTrue(TestAuditlogImpl.messages.isEmpty());
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
 }

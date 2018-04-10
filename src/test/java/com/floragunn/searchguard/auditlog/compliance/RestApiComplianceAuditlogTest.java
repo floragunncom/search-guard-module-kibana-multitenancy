@@ -56,6 +56,7 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("UPDATE"));
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
     
     @Test
@@ -92,6 +93,7 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("UPDATE"));
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
     
     @Test
@@ -128,6 +130,7 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("UPDATE"));
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
     
     
@@ -158,6 +161,7 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_EXTERNAL_CONFIG"));
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
 
 }

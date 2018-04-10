@@ -340,7 +340,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SSL_EXCEPTION, getOrigin(), action, null, getUser(), false, null, remoteAddress, request, 
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SSL_EXCEPTION, Origin.TRANSPORT, action, null, getUser(), false, null, remoteAddress, request, 
                 getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, t);
         
         for(AuditMessage msg: msgs) {
@@ -355,7 +355,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return;
         }
         
-        AuditMessage msg = new AuditMessage(Category.SSL_EXCEPTION, clusterService, getOrigin(), Origin.REST);
+        AuditMessage msg = new AuditMessage(Category.SSL_EXCEPTION, clusterService, Origin.REST, Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if(request != null && logRequestBody && request.hasContentOrSourceParam()) {

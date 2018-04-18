@@ -14,6 +14,7 @@
 
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
+import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -24,6 +25,8 @@ import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.google.common.base.Strings;
 
 public class SelfRefreshingKeySet implements KeyProvider {
 	private static final Logger log = LogManager.getLogger(SelfRefreshingKeySet.class);
@@ -47,27 +50,101 @@ public class SelfRefreshingKeySet implements KeyProvider {
 		this.keySetProvider = refreshFunction;
 	}
 
-	public JsonWebKey getKeyByKid(String kid) throws AuthenticatorUnavailableException {
+	public JsonWebKey getKey(String kid) throws AuthenticatorUnavailableException, BadCredentialsException {
+		if (Strings.isNullOrEmpty(kid)) {
+			return getKeyWithoutKeyId();
+		} else {
+			return getKeyWithKeyId(kid);
+		}
+	}
+
+	public synchronized JsonWebKey getKeyAfterRefresh(String kid)
+			throws AuthenticatorUnavailableException, BadCredentialsException {
+		JsonWebKey result = getKeyAfterRefreshInternal(kid);
+
+		if (result != null) {
+			return result;
+		} else if (jsonWebKeys.getKeys().size() == 0) {
+			throw new AuthenticatorUnavailableException("No JWK are available from IdP");
+		} else {
+			throw new BadCredentialsException("JWT did not contain KID which is required if IdP provides multiple JWK");
+		}
+	}
+
+	private synchronized JsonWebKey getKeyAfterRefreshInternal(String kid) throws AuthenticatorUnavailableException {
+		if (refreshInProgress) {
+			return waitForRefreshToFinish(kid);
+		} else {
+			return performRefresh(kid);
+		}
+	}
+
+	private JsonWebKey getKeyWithoutKeyId() throws AuthenticatorUnavailableException, BadCredentialsException {
+		List<JsonWebKey> keys = jsonWebKeys.getKeys();
+
+		if (keys == null || keys.size() == 0) {
+			JsonWebKey result = getKeyWithRefresh(null);
+
+			if (result != null) {
+				return result;
+			} else {
+				throw new AuthenticatorUnavailableException("No JWK are available from IdP");
+			}
+		} else if (keys.size() == 1) {
+			return keys.get(0);
+		} else {
+			JsonWebKey result = getKeyWithRefresh(null);
+
+			if (result != null) {
+				return result;
+			} else {
+				throw new BadCredentialsException(
+						"JWT did not contain KID which is required if IdP provides multiple JWK");
+			}
+		}
+	}
+
+	private JsonWebKey getKeyWithKeyId(String kid) throws AuthenticatorUnavailableException, BadCredentialsException {
 		JsonWebKey result = jsonWebKeys.getKey(kid);
 
 		if (result != null) {
 			return result;
 		}
 
-		synchronized (this) {
-			// Re-check to handle any races
+		result = getKeyWithRefresh(kid);
 
-			result = jsonWebKeys.getKey(kid);
+		if (result == null) {
+			throw new BadCredentialsException("Unknown kid " + kid);
+		}
 
-			if (result != null) {
-				return result;
-			}
+		return result;
+	}
 
-			if (refreshInProgress) {
-				return waitForRefreshToFinish(kid);
+	private synchronized JsonWebKey getKeyWithRefresh(String kid) throws AuthenticatorUnavailableException {
+
+		// Always re-check within synchronized to handle any races
+
+		JsonWebKey result = getKeySimple(kid);
+
+		if (result != null) {
+			return result;
+		}
+
+		return getKeyAfterRefreshInternal(kid);
+	}
+
+	private JsonWebKey getKeySimple(String kid) {
+		if (Strings.isNullOrEmpty(kid)) {
+			List<JsonWebKey> keys = jsonWebKeys.getKeys();
+
+			if (keys != null && keys.size() == 1) {
+				return keys.get(0);
 			} else {
-				return performRefresh(kid);
+				return null;
 			}
+
+		} else {
+			return jsonWebKeys.getKey(kid);
 		}
 	}
 
@@ -83,7 +160,7 @@ public class SelfRefreshingKeySet implements KeyProvider {
 
 		// Just be optimistic and re-check the key
 
-		JsonWebKey result = jsonWebKeys.getKey(kid);
+		JsonWebKey result = getKeySimple(kid);
 
 		if (result != null) {
 			return result;
@@ -169,7 +246,7 @@ public class SelfRefreshingKeySet implements KeyProvider {
 				log.debug(e);
 			}
 
-			JsonWebKey result = jsonWebKeys.getKey(kid);
+			JsonWebKey result = getKeySimple(kid);
 
 			if (result != null) {
 				return result;

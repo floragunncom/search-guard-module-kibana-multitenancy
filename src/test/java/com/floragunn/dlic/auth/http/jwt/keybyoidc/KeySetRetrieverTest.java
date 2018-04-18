@@ -1,3 +1,17 @@
+/*
+ * Copyright 2016-2018 by floragunn GmbH - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
 import java.io.FileInputStream;
@@ -31,7 +45,7 @@ public class KeySetRetrieverTest {
 
 	@BeforeClass
 	public static void setUp() throws Exception {
-		mockIdpServer = new MockIpdServer();
+		mockIdpServer = new MockIpdServer(TestJwk.Jwks.ALL);
 	}
 
 	@AfterClass
@@ -62,7 +76,7 @@ public class KeySetRetrieverTest {
 	@Test
 	public void clientCertTest() throws Exception {
 
-		try (MockIpdServer sslMockIdpServer = new MockIpdServer(8084, true) {
+		try (MockIpdServer sslMockIdpServer = new MockIpdServer(TestJwk.Jwks.ALL, 8084, true) {
 			@Override
 			protected void handleDiscoverRequest(HttpRequest request, HttpResponse response, HttpContext context)
 					throws HttpException, IOException {

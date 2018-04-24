@@ -62,26 +62,8 @@ class WebhookAuditLog extends AuditLogSink {
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) throws Exception {
 		super(settings, threadPool, resolver, clusterService);
 		
-		final boolean pem = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
-                || settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
-
-		if(pem) {
-		    X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, settings));
-            
-            if(trustCertificates == null) {
-                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, settings, configPath, false));
-            }
-            
-            effectiveTruststore = PemKeyReader.toTruststore("alw", trustCertificates);
-
-    
-		} else {
-		    effectiveTruststore = PemKeyReader.loadKeyStore(PemKeyReader.resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, settings, configPath, false)
-                    , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD, SSLConfigConstants.DEFAULT_STORE_PASSWORD)
-                    , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE));
-		}
-		
-		
+		this.effectiveTruststore = getEffectiveKeyStore(configPath);
+				
 		final String webhookUrl = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_WEBHOOK_URL);
 		final String format = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_WEBHOOK_FORMAT);
 		
@@ -317,6 +299,39 @@ class WebhookAuditLog extends AuditLogSink {
 		}
 	}
 
+	private KeyStore getEffectiveKeyStore(final Path configPath) {
+
+		return AccessController.doPrivileged(new PrivilegedAction<KeyStore>() {
+
+			@Override
+			public KeyStore run() {
+				try {
+					final boolean pem = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
+			                || settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
+
+					if(pem) {
+					    X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, settings));
+			            
+			            if(trustCertificates == null) {
+			                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, settings, configPath, false));
+			            }
+			            
+			            return PemKeyReader.toTruststore("alw", trustCertificates);
+
+			    
+					} else {
+					    return PemKeyReader.loadKeyStore(PemKeyReader.resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, settings, configPath, false)
+			                    , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD, SSLConfigConstants.DEFAULT_STORE_PASSWORD)
+			                    , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE));
+					}				
+				} catch(Exception ex) {
+					log.error("Could not load key material. Make sure your certificates are located relative to the config directory", ex);
+					return null;
+				}
+			}
+		});
+	}	
+	
 	CloseableHttpClient getHttpClient()  {
 	    
         // TODO: set a timeout until we have a proper way to deal with back pressure

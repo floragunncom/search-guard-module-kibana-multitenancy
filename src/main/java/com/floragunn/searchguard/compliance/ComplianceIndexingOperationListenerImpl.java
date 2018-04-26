@@ -50,7 +50,7 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
     }
 
     @Override
-    public void setIs(IndexService is) {
+    public void setIs(final IndexService is) {
         if(this.is != null) {
             throw new ElasticsearchException("Index service already set");
         }
@@ -79,114 +79,122 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
     private static final ThreadLocal<Context> threadContext = new ThreadLocal<Context>();
 
     @Override
-    public void postDelete(ShardId shardId, Delete delete, DeleteResult result) {
-        Objects.requireNonNull(is);
-        if(!result.hasFailure() && result.isFound() && delete.origin() == org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
-            auditlog.logDocumentDeleted(shardId, delete, result);
-        }
+    public void postDelete(final ShardId shardId, final Delete delete, final DeleteResult result) {
+        if(complianceConfig.isEnabled()) {
+            Objects.requireNonNull(is);
+            if(!result.hasFailure() && result.isFound() && delete.origin() == org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
+                auditlog.logDocumentDeleted(shardId, delete, result);
+            }
+        } 
     }
 
     @Override
-    public Index preIndex(ShardId shardId, Index index) {
-        Objects.requireNonNull(is);
-
-        final IndexShard shard;
-
-        if (index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
-            return index;
-        }
-
-        if((shard = is.getShardOrNull(shardId.getId())) == null) {
-            return index;
-        }
-
-        if (shard.isReadAllowed()) {
-            try {
-                final MapperService mapperService = shard.mapperService();
-                // final boolean sourceMapperEnabled =
-                // mapperService.documentMapper(index.type()).sourceMapper().enabled();
-
-                // if(!sourceMapperEnabled) {
-                // log.warn("log_source deactivated"); //TODO single and
-                // explaining warning
-                // }
-
-
-                final List<String> storedFields = new ArrayList<String>(30);
-                final Iterator<FieldMapper> fm = mapperService.documentMapper(index.type()).mappers().iterator();
-                while(fm.hasNext()) {
-                    FieldMapper fma = fm.next();
-                    if(fma.fieldType().stored() && !fma.name().startsWith("_")) {
-                        storedFields.add(fma.name());
+    public Index preIndex(final ShardId shardId, final Index index) {
+        if(complianceConfig.isEnabled()) {
+            Objects.requireNonNull(is);
+    
+            final IndexShard shard;
+    
+            if (index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
+                return index;
+            }
+    
+            if((shard = is.getShardOrNull(shardId.getId())) == null) {
+                return index;
+            }
+    
+            if (shard.isReadAllowed()) {
+                try {
+                    final MapperService mapperService = shard.mapperService();
+                    // final boolean sourceMapperEnabled =
+                    // mapperService.documentMapper(index.type()).sourceMapper().enabled();
+    
+                    // if(!sourceMapperEnabled) {
+                    // log.warn("log_source deactivated"); //TODO single and
+                    // explaining warning
+                    // }
+    
+    
+                    final List<String> storedFields = new ArrayList<String>(30);
+                    final Iterator<FieldMapper> fm = mapperService.documentMapper(index.type()).mappers().iterator();
+                    while(fm.hasNext()) {
+                        FieldMapper fma = fm.next();
+                        if(fma.fieldType().stored() && !fma.name().startsWith("_")) {
+                            storedFields.add(fma.name());
+                        }
+                    }
+    
+                    final String[] storedFieldsA = storedFields.toArray(new String[0]);
+    
+                    final GetResult getResult = shard.getService().get(index.type(), index.id(),
+                            storedFieldsA, true, index.version(), index.versionType(),
+                            FetchSourceContext.FETCH_SOURCE);
+    
+                    if (getResult.isExists()) {
+                        threadContext.set(new Context(getResult, storedFieldsA));
+                    } else {
+                        threadContext.set(new Context(null, storedFieldsA));
+                    }
+                } catch (Exception e) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Cannot retrieve original document due to {}", e.toString());
                     }
                 }
-
-                final String[] storedFieldsA = storedFields.toArray(new String[0]);
-
-                final GetResult getResult = shard.getService().get(index.type(), index.id(),
-                        storedFieldsA, true, index.version(), index.versionType(),
-                        FetchSourceContext.FETCH_SOURCE);
-
-                if (getResult.isExists()) {
-                    threadContext.set(new Context(getResult, storedFieldsA));
-                } else {
-                    threadContext.set(new Context(null, storedFieldsA));
-                }
-            } catch (Exception e) {
+            } else {
                 if (log.isDebugEnabled()) {
-                    log.debug("Cannot retrieve original document due to {}", e.toString());
+                    log.debug("Cannot read from shard {}", shardId);
                 }
-            }
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Cannot read from shard {}", shardId);
             }
         }
+        
         return index;
-
     }
 
 
     @Override
-    public void postIndex(ShardId shardId, Index index, Exception ex) {
-        threadContext.remove();
+    public void postIndex(final ShardId shardId, final Index index, final Exception ex) {
+        if(complianceConfig.isEnabled()) {
+            threadContext.remove();
+        }
     }
 
     @Override
     public void postIndex(ShardId shardId, Index index, IndexResult result) {
-        final Context context = threadContext.get();// seq.remove(index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
-        final GetResult previousContent = context==null?null:context.getGetResult();
-        final String[] storedFieldsA = context==null?null:context.getStoredFields();
-        threadContext.remove();
-        Objects.requireNonNull(is);
-
-        final IndexShard shard;
-        if (result.hasFailure() || index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
-            return;
-        }
-
-        if((shard = is.getShardOrNull(shardId.getId())) == null) {
-            return;
-        }
-
-        final GetResult getResult = shard.getService().get(index.type(), index.id(),
-                storedFieldsA, true, result.getVersion(), index.versionType(),
-                FetchSourceContext.FETCH_SOURCE);
-
-        if(previousContent == null) {
-            //no previous content
-            if(!result.isCreated()) {
-                log.warn("No previous content and not created (its an update but do not find orig source) for {}", index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+        if(complianceConfig.isEnabled()) {
+            final Context context = threadContext.get();// seq.remove(index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+            final GetResult previousContent = context==null?null:context.getGetResult();
+            final String[] storedFieldsA = context==null?null:context.getStoredFields();
+            threadContext.remove();
+            Objects.requireNonNull(is);
+    
+            final IndexShard shard;
+            if (result.hasFailure() || index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
+                return;
             }
-            assert result.isCreated():"No previous content and not created";
-        } else {
-            if(result.isCreated()) {
-                log.warn("Previous content and created for {}",index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+    
+            if((shard = is.getShardOrNull(shardId.getId())) == null) {
+                return;
             }
-            assert !result.isCreated():"Previous content and created";
+    
+            final GetResult getResult = shard.getService().get(index.type(), index.id(),
+                    storedFieldsA, true, result.getVersion(), index.versionType(),
+                    FetchSourceContext.FETCH_SOURCE);
+    
+            if(previousContent == null) {
+                //no previous content
+                if(!result.isCreated()) {
+                    log.warn("No previous content and not created (its an update but do not find orig source) for {}", index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+                }
+                assert result.isCreated():"No previous content and not created";
+            } else {
+                if(result.isCreated()) {
+                    log.warn("Previous content and created for {}",index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
+                }
+                assert !result.isCreated():"Previous content and created";
+            }
+    
+            auditlog.logDocumentWritten(shardId, previousContent, getResult, index, result, complianceConfig);
         }
-
-        auditlog.logDocumentWritten(shardId, previousContent, getResult, index, result, complianceConfig);
     }
 
 }

@@ -296,7 +296,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
     @Override
     public void document(final int docID, final StoredFieldVisitor visitor) throws IOException {
-        final boolean maskFields = maskedFields != null && maskedFields.size() > 0;
+        final boolean maskFields = (complianceConfig.isEnabled() && maskedFields != null && maskedFields.size() > 0);
         
         if(complianceConfig.readHistoryEnabledForIndex(indexService.index().getName())) {
             final ComplianceAwareStoredFieldVisitor cv = new ComplianceAwareStoredFieldVisitor(visitor);

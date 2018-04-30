@@ -2,6 +2,6 @@ searchguard:
   audit:
     type: kafka
     config:
-      bootstrap_servers: "localhost:9092"
+      bootstrap_servers: _RPLC_BOOTSTRAP_SERVERS_
       topic_name: compliance
       client_id: elasticsearch_cluster_1

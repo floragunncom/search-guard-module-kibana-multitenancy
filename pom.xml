@@ -31,7 +31,7 @@
     <!-- deps -->
     <log4j.version>2.9.1</log4j.version>
     <jjwt.version>0.9.0</jjwt.version>
-    <ldaptive.version>1.1.0-fg-fork1</ldaptive.version>
+    <ldaptive.version>1.2.3</ldaptive.version>
     <jackson-databind.version>2.8.11.1</jackson-databind.version>
     <http.commons.version>4.5.3</http.commons.version>
     <cxf.version>3.2.2</cxf.version>
@@ -90,7 +90,7 @@
     </dependency>
 
     <dependency>
-      <groupId>com.floragunn</groupId>
+      <groupId>org.ldaptive</groupId>
       <artifactId>ldaptive</artifactId>
       <version>${ldaptive.version}</version>
       <exclusions>

@@ -18,7 +18,6 @@ jobs:
             - ~/.m2
           key: circleci-sg-{{ checksum "pom.xml" }}
       - run: mvn -Pcoverage verify
-      - run: 
       - store_test_results:
           path: target/surefire-reports
       - deploy:

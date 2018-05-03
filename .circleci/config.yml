@@ -18,13 +18,14 @@ jobs:
             - ~/.m2
           key: circleci-sg-{{ checksum "pom.xml" }}
       - run: mvn -Pcoverage verify
-      - run: mvn -Pcoverage sonar:sonar -Dsonar.organization=floragunncom-github -Dsonar.login=$SONAR_LOGIN -Dsonar.host.url=https://sonarcloud.io
+      - run: 
       - store_test_results:
           path: target/surefire-reports
       - deploy:
           name: Maybe Deploy
           command: |
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              mvn -Pcoverage sonar:sonar -Dsonar.organization=floragunncom-github -Dsonar.login=$SONAR_LOGIN -Dsonar.host.url=https://sonarcloud.io
               mvn deploy -DskipTests -s settings.xml
             fi
 

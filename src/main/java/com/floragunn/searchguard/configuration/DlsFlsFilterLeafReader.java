@@ -64,6 +64,7 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.index.IndexService;
+import org.elasticsearch.index.shard.ShardId;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
@@ -94,18 +95,21 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
     private final ComplianceConfig complianceConfig;
     private final AuditLog auditlog;
     private final Set<String> maskedFields;
+    private final ShardId shardId;
     
     DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includesExcludes,
             final Query dlsQuery, final IndexService indexService, final ThreadContext threadContext,
             final ClusterService clusterService, final ComplianceConfig complianceConfig,
-            final AuditLog auditlog, final Set<String> maskedFields) {
-        super(delegate);
+            final AuditLog auditlog, final Set<String> maskedFields, final ShardId shardId) {
+        super(delegate);        
+        
         this.indexService = indexService;
         this.threadContext = threadContext;
         this.clusterService = clusterService;
         this.complianceConfig = complianceConfig;
         this.auditlog = auditlog;
         this.maskedFields = maskedFields;
+        this.shardId = shardId;
         flsEnabled = includesExcludes != null && !includesExcludes.isEmpty();
         dlsEnabled = dlsQuery != null;
         if (flsEnabled) {
@@ -235,11 +239,12 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         private final ComplianceConfig complianceConfig;
         private final AuditLog auditlog;
         private final Set<String> maskedFields;
+        private final ShardId shardId;
 
         public DlsFlsSubReaderWrapper(final Set<String> includes, final Query dlsQuery,
                 final IndexService indexService, final ThreadContext threadContext,
                 final ClusterService clusterService, final ComplianceConfig complianceConfig,
-                final AuditLog auditlog, final Set<String> maskedFields) {
+                final AuditLog auditlog, final Set<String> maskedFields, ShardId shardId) {
             this.includes = includes;
             this.dlsQuery = dlsQuery;
             this.indexService = indexService;
@@ -248,11 +253,12 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
             this.complianceConfig = complianceConfig;
             this.auditlog = auditlog;
             this.maskedFields = maskedFields;
+            this.shardId = shardId;
         }
 
         @Override
         public LeafReader wrap(final LeafReader reader) {
-            return new DlsFlsFilterLeafReader(reader, includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields);
+            return new DlsFlsFilterLeafReader(reader, includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields, shardId);
         }
 
     }
@@ -267,12 +273,13 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         private final ComplianceConfig complianceConfig;
         private final AuditLog auditlog;
         private final Set<String> maskedFields;
+        private final ShardId shardId;
 
         public DlsFlsDirectoryReader(final DirectoryReader in, final Set<String> includes, final Query dlsQuery,
                 final IndexService indexService, final ThreadContext threadContext,
                 final ClusterService clusterService, final ComplianceConfig complianceConfig,
-                final AuditLog auditlog, final Set<String> maskedFields) throws IOException {
-            super(in, new DlsFlsSubReaderWrapper(includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields));
+                final AuditLog auditlog, final Set<String> maskedFields, ShardId shardId) throws IOException {
+            super(in, new DlsFlsSubReaderWrapper(includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields, shardId));
             this.includes = includes;
             this.dlsQuery = dlsQuery;
             this.indexService = indexService;
@@ -281,11 +288,12 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
             this.complianceConfig = complianceConfig;
             this.auditlog = auditlog;
             this.maskedFields = maskedFields;
+            this.shardId = shardId;
         }
 
         @Override
         protected DirectoryReader doWrapDirectoryReader(final DirectoryReader in) throws IOException {
-            return new DlsFlsDirectoryReader(in, includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields);
+            return new DlsFlsDirectoryReader(in, includes, dlsQuery, indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields, shardId);
         }
 
         @Override
@@ -341,7 +349,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
         private final StoredFieldVisitor delegate;
         private final FieldReadCallback fieldReadCallback = 
-                new FieldReadCallback(threadContext, indexService, clusterService, complianceConfig, auditlog, maskedFields);
+                new FieldReadCallback(threadContext, indexService, clusterService, complianceConfig, auditlog, maskedFields, shardId);
 
         public ComplianceAwareStoredFieldVisitor(final StoredFieldVisitor delegate) {
             super();

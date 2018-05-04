@@ -55,7 +55,7 @@ public class SgConfigAction extends AbstractApiAction {
 	protected Tuple<String[], RestResponse> handleGet(RestRequest request, Client client,
 			final Settings.Builder additionalSettingsBuilder) throws Throwable {
 
-		final Settings configurationSettings = loadAsSettings(getConfigName());
+		final Settings configurationSettings = loadAsSettings(getConfigName(), true);
 
 		return new Tuple<String[], RestResponse>(new String[0],
 				new BytesRestResponse(RestStatus.OK, convertToJson(configurationSettings)));

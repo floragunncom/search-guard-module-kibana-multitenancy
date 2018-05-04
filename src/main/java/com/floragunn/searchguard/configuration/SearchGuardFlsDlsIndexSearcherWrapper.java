@@ -105,7 +105,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
                 indexService.newQueryShardContext(shardId.getId(), reader, () -> 0L, null);
         
         return new DlsFlsFilterLeafReader.DlsFlsDirectoryReader(reader, flsFields, DlsQueryParser.parse(unparsedDlsQueries, queryShardContext, this.namedXContentRegistry), 
-                indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields);
+                indexService, threadContext, clusterService, complianceConfig, auditlog, maskedFields, shardId);
     }
 
 

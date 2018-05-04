@@ -51,9 +51,9 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Thread.sleep(1500);
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
-        Assert.assertTrue(TestAuditlogImpl.messages.size() > 2);      
+        Assert.assertTrue(TestAuditlogImpl.messages.size()+"",TestAuditlogImpl.messages.size() == 1);      
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_request_effective_user"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("UPDATE"));
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
@@ -88,9 +88,9 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Thread.sleep(1500);
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
-        Assert.assertTrue(TestAuditlogImpl.messages.size() > 2);      
+        Assert.assertTrue(TestAuditlogImpl.messages.size()+"",TestAuditlogImpl.messages.size() == 1);      
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_request_effective_user"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("UPDATE"));
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
@@ -161,6 +161,70 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_EXTERNAL_CONFIG"));
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
+    }
+    
+    @Test
+    public void testRestApiNewUser() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_RESTAPI_ROLES_ENABLED, "sg_all_access")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_METADATA_ONLY, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_IGNORE_USERS, "admin")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+
+        setup(additionalSettings);
+        TestAuditlogImpl.clear();
+        String body = "{ \"password\":\"test\",\"roles\":[\"role1\",\"role2\"] }";
+        System.out.println("exec");
+        HttpResponse response = rh.executePutRequest("_searchguard/api/user/compuser?pretty", body, encodeBasicHeader("admin", "admin"));
+        Thread.sleep(1500);
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+        Assert.assertTrue(TestAuditlogImpl.messages.size()+"", TestAuditlogImpl.messages.isEmpty());      
+    }
+    
+    @Test
+    public void testRestInternalConfigRead() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_METADATA_ONLY, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+
+        setup(additionalSettings);
+        TestAuditlogImpl.clear();
+        
+        rh.enableHTTPClientSSL = true;
+        rh.trustHTTPServerCertificate = true;
+        rh.sendHTTPClientCertificate = true;
+        rh.keystore = "kirk-keystore.jks";
+        System.out.println("req");
+        HttpResponse response = rh.executeGetRequest("_searchguard/api/internalusers/admin?pretty");
+        Thread.sleep(1500);
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        System.out.println(response.getBody());
+        Assert.assertTrue(TestAuditlogImpl.messages.size()+"",TestAuditlogImpl.messages.size() == 1);      
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_request_effective_user"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("UPDATE"));
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
 

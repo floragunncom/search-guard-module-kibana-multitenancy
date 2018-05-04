@@ -73,7 +73,7 @@ public class GetConfigurationApiAction extends AbstractApiAction {
 
 		}
 
-		final Settings config = loadAsSettings(configname);
+		final Settings config = loadAsSettings(configname, true);
 		
 		return new Tuple<String[], RestResponse>(new String[0],
 				new BytesRestResponse(RestStatus.OK, convertToJson(config)));

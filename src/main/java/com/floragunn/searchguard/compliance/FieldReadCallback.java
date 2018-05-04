@@ -38,6 +38,7 @@ import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.Uid;
+import org.elasticsearch.index.shard.ShardId;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.support.HeaderHelper;
@@ -63,10 +64,11 @@ public final class FieldReadCallback {
     private Function<Map<String, ?>, Map<String, Object>> filterFunction;
     private SourceFieldsContext sfc;
     private Doc doc;
+    private final ShardId shardId;
 
     public FieldReadCallback(final ThreadContext threadContext, final IndexService indexService,
             final ClusterService clusterService, final ComplianceConfig complianceConfig, final AuditLog auditLog,
-            final Set<String> maskedFields) {
+            final Set<String> maskedFields, ShardId shardId) {
         super();
         //this.threadContext = Objects.requireNonNull(threadContext);
         //this.clusterService = Objects.requireNonNull(clusterService);
@@ -74,6 +76,7 @@ public final class FieldReadCallback {
         this.complianceConfig = complianceConfig;
         this.auditLog = auditLog;
         this.maskedFields = maskedFields;
+        this.shardId = shardId;
         try {
             sfc = (SourceFieldsContext) HeaderHelper.deserializeSafeFromHeader(threadContext, "_sg_source_field_context");
             if(sfc != null && sfc.getIncludes() != null && sfc.getExcludes() != null) {
@@ -191,7 +194,7 @@ public final class FieldReadCallback {
             for(Field fi: doc.fields) {
                 f.put(fi.fieldName, String.valueOf(fi.fieldValue));
             }
-            auditLog.logDocumentRead(doc.indexName, doc.id, f, complianceConfig);
+            auditLog.logDocumentRead(doc.indexName, doc.id, shardId, f, complianceConfig);
         } catch (Exception e) {
             log.error("Unexpected error finished compliance read entry {} in index '{}': {}", doc.id, index.getName(), e.toString(), e);
         }

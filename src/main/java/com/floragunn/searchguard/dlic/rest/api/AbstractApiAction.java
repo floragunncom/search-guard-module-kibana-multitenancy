@@ -140,7 +140,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 			return badRequestResponse("No " + getResourceName() + " specified");
 		}
 
-		final Settings existingAsSettings = loadAsSettings(getConfigName());
+		final Settings existingAsSettings = loadAsSettings(getConfigName(), false);
 		
 		// check if resource is read only
 		Boolean readOnly = existingAsSettings.getAsBoolean(name+ "." + ConfigConstants.CONFIGKEY_READONLY, Boolean.FALSE);
@@ -169,7 +169,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 			return badRequestResponse("No " + getResourceName() + " specified");
 		}
 
-		final Settings existingAsSettings = loadAsSettings(getConfigName());
+		final Settings existingAsSettings = loadAsSettings(getConfigName(), false);
 		
 		// check if resource is writeable
 		Boolean readOnly = existingAsSettings.getAsBoolean(name+ "." + ConfigConstants.CONFIGKEY_READONLY, Boolean.FALSE);
@@ -205,7 +205,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 		final String resourcename = request.param("name");
 
-		final Settings configurationSettings = loadAsSettings(getConfigName());
+		final Settings configurationSettings = loadAsSettings(getConfigName(), true);
 
 		// no specific resource requested, return complete config
 		if (resourcename == null || resourcename.length() == 0) {
@@ -228,12 +228,12 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	}
 
 
-	protected final Settings.Builder load(final String config) {
-		return Settings.builder().put(loadAsSettings(config));
+	protected final Settings.Builder load(final String config, boolean triggerComplianceWhenCached) {
+		return Settings.builder().put(loadAsSettings(config, triggerComplianceWhenCached));
 	}
 
-	protected final Settings loadAsSettings(final String config) {
-		return cl.getConfiguration(config);
+	protected final Settings loadAsSettings(final String config, boolean triggerComplianceWhenCached) {
+		return cl.getConfiguration(config, triggerComplianceWhenCached);
 	}
 
 	protected boolean ensureIndexExists(final Client client) {

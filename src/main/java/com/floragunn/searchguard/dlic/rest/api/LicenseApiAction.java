@@ -159,7 +159,7 @@ public class LicenseApiAction extends AbstractApiAction {
 		}
 				
 		// load existing configuration into new map
-		final Settings.Builder existing = load(getConfigName());
+		final Settings.Builder existing = load(getConfigName(), false);
 		
 		if (log.isTraceEnabled()) {
 			log.trace(existing.build().toString());	

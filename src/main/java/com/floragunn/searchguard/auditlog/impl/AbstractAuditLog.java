@@ -34,6 +34,11 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkShardRequest;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -102,6 +107,15 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     private final String searchguardIndex;
     private final ObjectMapper mapper = new ObjectMapper();
+    private final static List<String> writeClasses = new ArrayList<String>();
+    
+    {
+        writeClasses.add(IndexRequest.class.getSimpleName());
+        writeClasses.add(UpdateRequest.class.getSimpleName());
+        writeClasses.add(BulkRequest.class.getSimpleName());
+        writeClasses.add(BulkShardRequest.class.getSimpleName());
+        writeClasses.add(DeleteRequest.class.getSimpleName());
+    }
 
     protected AbstractAuditLog(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super();
@@ -437,12 +451,21 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logDocumentRead(String index, String id, Map<String, String> fieldNameValues, ComplianceConfig complianceConfig) {
-
-        Category category = searchguardIndex.equals(index)?Category.COMPLIANCE_INTERNAL_CONFIG_READ:Category.COMPLIANCE_DOC_READ;
+    public void logDocumentRead(String index, String id, ShardId shardId, Map<String, String> fieldNameValues, ComplianceConfig complianceConfig) {
         
-        String effectiveUser = getUser();
+        if(complianceConfig == null || !complianceConfig.readHistoryEnabledForIndex(index)) {
+            return;
+        }
+        
+        final String initiatingRequestClass = threadPool.getThreadContext().getHeader(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER);
+        
+        if(initiatingRequestClass != null && writeClasses.contains(initiatingRequestClass)) {
+            return;
+        }
+        
+        Category category = searchguardIndex.equals(index)?Category.COMPLIANCE_INTERNAL_CONFIG_READ:Category.COMPLIANCE_DOC_READ;
 
+        String effectiveUser = getUser();
         if(!checkComplianceFilter(category, effectiveUser, getOrigin())) {
             return;
         }
@@ -454,6 +477,8 @@ public abstract class AbstractAuditLog implements AuditLog {
             msg.addEffectiveUser(effectiveUser);
             msg.addIndices(new String[]{index});
             msg.addResolvedIndices(new String[]{index});
+            msg.addShardId(shardId);
+            //msg.addIsAdminDn(sgAdmin);
             msg.addId(id);
 
             try {
@@ -470,9 +495,13 @@ public abstract class AbstractAuditLog implements AuditLog {
                     }
                 } else {
                     if(searchguardIndex.equals(index) && !"tattr".equals(id)) {
-                        Map<String, String> map = fieldNameValues.entrySet().stream()
-                        .collect(Collectors.toMap(entry -> "id", entry -> new String(BaseEncoding.base64().decode(((Entry<String, String>) entry).getValue()), StandardCharsets.UTF_8)));
-                        msg.addMapToRequestBody(Utils.convertJsonToxToStructuredMap(map.get("id")));                      
+                        try {
+                            Map<String, String> map = fieldNameValues.entrySet().stream()
+                            .collect(Collectors.toMap(entry -> "id", entry -> new String(BaseEncoding.base64().decode(((Entry<String, String>) entry).getValue()), StandardCharsets.UTF_8)));
+                            msg.addMapToRequestBody(Utils.convertJsonToxToStructuredMap(map.get("id")));
+                        } catch (Exception e) {
+                            msg.addMapToRequestBody(new HashMap<String, Object>(fieldNameValues));
+                        }                      
                      } else {
                         msg.addMapToRequestBody(new HashMap<String, Object>(fieldNameValues));
                      }
@@ -488,7 +517,11 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     @Override
     public void logDocumentWritten(ShardId shardId, GetResult originalIndex, GetResult currentGet, Index currentIndex, IndexResult result, ComplianceConfig complianceConfig) {
-
+        
+        if(complianceConfig == null || !complianceConfig.writeHistoryEnabledForIndex(shardId.getIndexName())) {
+            return;
+        }
+        
         Category category = searchguardIndex.equals(shardId.getIndexName())?Category.COMPLIANCE_INTERNAL_CONFIG_WRITE:Category.COMPLIANCE_DOC_WRITE;
 
         String effectiveUser = getUser();
@@ -779,7 +812,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if(category == Category.COMPLIANCE_DOC_READ) {
+        if(category == Category.COMPLIANCE_DOC_READ || category == Category.COMPLIANCE_INTERNAL_CONFIG_READ) {
             if (ignoredComplianceUsersForRead.size() > 0 && effectiveUser != null
                     && WildcardMatcher.matchAny(ignoredComplianceUsersForRead, effectiveUser)) {
 
@@ -791,7 +824,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         }
 
-        if(category == Category.COMPLIANCE_DOC_WRITE) {
+        if(category == Category.COMPLIANCE_DOC_WRITE || category == Category.COMPLIANCE_INTERNAL_CONFIG_WRITE) {
             if (ignoredComplianceUsersForWrite.size() > 0 && effectiveUser != null
                     && WildcardMatcher.matchAny(ignoredComplianceUsersForWrite, effectiveUser)) {
 

@@ -83,7 +83,7 @@ public class InternalUsersApiAction extends AbstractApiAction {
 			return badRequestResponse("No " + getResourceName() + " specified");
 		}
 
-		final Settings configurationSettings = loadAsSettings(getConfigName());
+		final Settings configurationSettings = loadAsSettings(getConfigName(), false);
 				
 		// check if resource is writeable
 		Boolean readOnly = configurationSettings.getAsBoolean(username+ "." + ConfigConstants.CONFIGKEY_READONLY, Boolean.FALSE);
@@ -99,7 +99,7 @@ public class InternalUsersApiAction extends AbstractApiAction {
 		}
 				
 		// check if user exists
-		final Settings.Builder internaluser = load(ConfigConstants.CONFIGNAME_INTERNAL_USERS);		
+		final Settings.Builder internaluser = load(ConfigConstants.CONFIGNAME_INTERNAL_USERS, false);		
 		final Map<String, Object> config = Utils.convertJsonToxToStructuredMap(internaluser.build()); 
 
 		boolean userExisted = config.containsKey(username);

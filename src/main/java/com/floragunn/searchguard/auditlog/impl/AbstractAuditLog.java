@@ -616,10 +616,10 @@ public abstract class AbstractAuditLog implements AuditLog {
             sm.checkPermission(new SpecialPermission());
         }
 
-        final String envAsString = AccessController.doPrivileged(new PrivilegedAction<String>() {
+        final Map<String, String> envAsMap = AccessController.doPrivileged(new PrivilegedAction<Map<String, String>>() {
             @Override
-            public String run() {
-                return String.valueOf(System.getenv());
+            public Map<String, String> run() {
+                return System.getenv();
             }
         });
         
@@ -630,14 +630,14 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         });
 
-        final String sha256 = DigestUtils.sha256Hex(configAsMap.toString()+envAsString+propsAsMap.toString());
+        final String sha256 = DigestUtils.sha256Hex(configAsMap.toString()+envAsMap.toString()+propsAsMap.toString());
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_EXTERNAL_CONFIG, clusterService, null, null);
         
         try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
             builder.startObject();
             builder.startObject("external_configuration");
             builder.field("elasticsearch_yml", configAsMap);
-            builder.field("os_environment", envAsString);
+            builder.field("os_environment", envAsMap);
             builder.field("java_properties", propsAsMap);
             builder.field("sha256_checksum", sha256);
             builder.endObject();

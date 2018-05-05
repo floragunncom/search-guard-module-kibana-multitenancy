@@ -32,6 +32,7 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.auditlog.sink.SinkProvider;
+import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.ConfigConstants;
 
@@ -43,9 +44,9 @@ public class AuditMessageRouter {
 	final SinkProvider sinkProvider;
 	final AsyncStoragePool storagePool;
 	boolean hasMultipleEndpoints;
+	private ComplianceConfig complianceConfig;
 	
-	public AuditMessageRouter(final Settings settings, final Client clientProvider, ThreadPool threadPool,
-			final Path configPath) {
+	public AuditMessageRouter(final Settings settings, final Client clientProvider, ThreadPool threadPool, final Path configPath) {
 		this.sinkProvider = new SinkProvider(settings, clientProvider, threadPool, configPath);
 		this.storagePool = new AsyncStoragePool(settings);
 		
@@ -56,6 +57,14 @@ public class AuditMessageRouter {
 		}
 		
 		// create sinks for all categories. Only do that if we have any extended setting, otherwise there is just the default category
+		setupRoutes(settings);			
+	}
+	
+	public void setComplianceConfig(ComplianceConfig complianceConfig) {
+		this.complianceConfig = complianceConfig;		
+	}
+	
+	private final void setupRoutes(Settings settings) {
 		Map<String, Object> routesConfiguration = Utils.convertJsonToxToStructuredMap(settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES));
 		if (!routesConfiguration.isEmpty()) {
 			hasMultipleEndpoints = true;
@@ -98,8 +107,8 @@ public class AuditMessageRouter {
 			}
 		}
 	}
-
-	private List<AuditLogSink> createSinksForCategory(Category category, Settings configuration) {
+	
+	private final List<AuditLogSink> createSinksForCategory(Category category, Settings configuration) {
 		List<AuditLogSink> sinksForCategory = new LinkedList<>();
 		List<String> sinks = configuration.getAsList("endpoints");
 		if (sinks == null || sinks.size() == 0) {
@@ -117,8 +126,8 @@ public class AuditMessageRouter {
 		return sinksForCategory;
 	}
 
-	public void route(final AuditMessage msg) {
-		if (!hasMultipleEndpoints) {
+	public final void route(final AuditMessage msg) {
+		if (!hasMultipleEndpoints || complianceConfig == null || !complianceConfig.isEnabled()) {
 			store(defaultSink, msg);
 		} else {
 			for (AuditLogSink sink : categorySinks.get(msg.getCategory())) {
@@ -127,7 +136,7 @@ public class AuditMessageRouter {
 		}
 	}
 	
-	private void store(AuditLogSink sink, AuditMessage msg) {
+	private final void store(AuditLogSink sink, AuditMessage msg) {
 		if (sink.isHandlingBackpressure()) {
 			sink.store(msg);
 			if (log.isTraceEnabled()) {
@@ -141,14 +150,14 @@ public class AuditMessageRouter {
 		}		
 	}
 
-	public void close() {
+	public final void close() {
 		// shutdown storage pool
 		storagePool.close();
 		// close default
 		sinkProvider.close();
 	}
 
-	protected void close(List<AuditLogSink> sinks) {
+	protected final void close(List<AuditLogSink> sinks) {
 		for (AuditLogSink sink : sinks) {
 			try {
 				log.info("Closing {}", sink.getClass().getSimpleName());

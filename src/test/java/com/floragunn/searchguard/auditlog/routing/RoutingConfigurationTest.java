@@ -18,6 +18,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.auditlog.sink.DebugSink;
@@ -25,12 +26,12 @@ import com.floragunn.searchguard.auditlog.sink.ExternalESSink;
 import com.floragunn.searchguard.auditlog.sink.InternalESSink;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
-public class RoutingConfigurationTest {
+public class RoutingConfigurationTest extends AbstractAuditlogiUnitTest{
 
 	@Test
 	public void testValidConfiguration() throws Exception {
 		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/configuration_valid.yml")).build();
-		AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
+		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
 		// default
 		Assert.assertEquals("default", router.defaultSink.getName());
 		Assert.assertEquals(ExternalESSink.class, router.defaultSink.getClass());
@@ -55,7 +56,7 @@ public class RoutingConfigurationTest {
 	@Test
 	public void testNoDefaultSink() throws Exception {
 		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/configuration_no_default.yml")).build();
-		AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
+		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
 		// no default sink, we fall back to debug sink
 		Assert.assertEquals(DebugSink.class, router.defaultSink.getClass());
 		List<AuditLogSink> sinks = router.categorySinks.get(AuditMessage.Category.MISSING_PRIVILEGES);
@@ -72,7 +73,7 @@ public class RoutingConfigurationTest {
 	@Test
 	public void testMissingEndpoints() throws Exception {
 		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/configuration_wrong_endpoint_names.yml")).build();
-		AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
+		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
 		// fallback to debug sink if no default is given
 		Assert.assertEquals(InternalESSink.class, router.defaultSink.getClass());
 		// missing configuration for endpoint2 / External ES. Fallback to
@@ -97,7 +98,7 @@ public class RoutingConfigurationTest {
 	@Test
 	public void testWrongCategories() throws Exception {
 		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/configuration_wrong_categories.yml")).build();
-		AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
+		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
 		// no default sink, we fall back to debug sink
 		Assert.assertEquals(DebugSink.class, router.defaultSink.getClass());
 
@@ -138,7 +139,7 @@ public class RoutingConfigurationTest {
 	@Test
 	public void testWrongEndpointTypes() throws Exception {
 		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/configuration_wrong_endpoint_types.yml")).build();
-		AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
+		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
 		// debug sink not valid, fallback to debug
 		Assert.assertEquals(DebugSink.class, router.defaultSink.getClass());
 

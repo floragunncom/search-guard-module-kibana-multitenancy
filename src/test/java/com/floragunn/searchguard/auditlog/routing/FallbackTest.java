@@ -22,6 +22,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.auditlog.helper.FailingSink;
 import com.floragunn.searchguard.auditlog.helper.LoggingSink;
 import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
@@ -31,7 +32,7 @@ import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
-public class FallbackTest {
+public class FallbackTest extends AbstractAuditlogiUnitTest {
 
 	@Test
 	public void testFallback() throws Exception {
@@ -39,8 +40,8 @@ public class FallbackTest {
 
 		Settings settings = settingsBuilder.put("path.home", ".").put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
 
-		AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
-
+		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
+		
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage(Category.MISSING_PRIVILEGES);
 		router.route(msg);
 
@@ -70,7 +71,7 @@ public class FallbackTest {
 		Assert.assertEquals(msg, loggingSkin.messages.get(0));
 
 		// has only one end point which fails
-		router = new AuditMessageRouter(settings, null, null, null);
+		router = createMessageRouterComplianceEnabled(settings);
 		msg = MockAuditMessageFactory.validAuditMessage(Category.COMPLIANCE_DOC_READ);
 		router.route(msg);
 		sinks = router.categorySinks.get(Category.COMPLIANCE_DOC_READ);
@@ -84,7 +85,7 @@ public class FallbackTest {
 		Assert.assertEquals(msg, loggingSkin.messages.get(0));
 
 		// has only default which succeeds
-		router = new AuditMessageRouter(settings, null, null, null);
+		router = createMessageRouterComplianceEnabled(settings);
 		msg = MockAuditMessageFactory.validAuditMessage(Category.COMPLIANCE_DOC_WRITE);
 		router.route(msg);
 		sinks = router.categorySinks.get(Category.COMPLIANCE_DOC_WRITE);
@@ -102,7 +103,7 @@ public class FallbackTest {
 		Assert.assertEquals(0, loggingSkin.messages.size());
 
 		// test non configured categories, must be logged to default only
-		router = new AuditMessageRouter(settings, null, null, null);
+		router = createMessageRouterComplianceEnabled(settings);
 		msg = MockAuditMessageFactory.validAuditMessage(Category.FAILED_LOGIN);
 		router.route(msg);
 		sinks = router.categorySinks.get(Category.FAILED_LOGIN);

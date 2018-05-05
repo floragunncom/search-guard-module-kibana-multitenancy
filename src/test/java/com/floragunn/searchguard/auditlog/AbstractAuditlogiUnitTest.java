@@ -22,10 +22,13 @@ import org.elasticsearch.common.settings.Settings;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
+import com.floragunn.searchguard.auditlog.routing.AuditMessageRouter;
+import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
+import static org.mockito.Mockito.*;
 
 public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
 
@@ -100,5 +103,13 @@ public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
             e.printStackTrace();
             return false;
         }
+    }
+    
+    protected AuditMessageRouter createMessageRouterComplianceEnabled(Settings settings) {
+    	AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
+    	ComplianceConfig mockConfig = mock(ComplianceConfig.class);
+    	when(mockConfig.isEnabled()).thenReturn(true);
+    	router.setComplianceConfig(mockConfig);
+    	return router;
     }
 }

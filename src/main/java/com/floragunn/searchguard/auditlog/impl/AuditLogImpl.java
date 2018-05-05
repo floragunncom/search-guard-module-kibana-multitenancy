@@ -28,6 +28,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.routing.AuditMessageRouter;
+import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public final class AuditLogImpl extends AbstractAuditLog {
@@ -98,6 +99,11 @@ public final class AuditLogImpl extends AbstractAuditLog {
 		});
 
 	}
+
+    @Override
+    public void setComplianceConfig(ComplianceConfig complianceConfig) {
+    	messageRouter.setComplianceConfig(complianceConfig);
+    }
 
 	@Override
 	public void close() throws IOException {

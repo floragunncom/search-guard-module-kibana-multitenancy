@@ -5,6 +5,7 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.auditlog.helper.LoggingSink;
 import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
@@ -14,7 +15,7 @@ import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 
 
-public class PerfTest {
+public class PerfTest extends AbstractAuditlogiUnitTest {
 
 	@Test
 	@Ignore(value="jvm crash on cci")
@@ -26,7 +27,7 @@ public class PerfTest {
 				.put("searchguard.audit.threadpool.size", 0)
 				.build();
 
-		AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
+		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
 		int limit = 150000;
 		while(limit > 0) {
 			AuditMessage msg = MockAuditMessageFactory.validAuditMessage(Category.MISSING_PRIVILEGES);

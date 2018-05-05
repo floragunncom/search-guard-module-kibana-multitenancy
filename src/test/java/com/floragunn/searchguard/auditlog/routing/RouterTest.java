@@ -20,6 +20,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.auditlog.helper.LoggingSink;
 import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
@@ -31,13 +32,13 @@ import com.floragunn.searchguard.auditlog.sink.InternalESSink;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
-public class RouterTest {
+public class RouterTest extends AbstractAuditlogiUnitTest{
 
 
 	@Test
 	public void testValidConfiguration() throws Exception {
 		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/configuration_valid.yml")).build();
-		AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
+		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
 		// default
 		Assert.assertEquals("default", router.defaultSink.getName());
 		Assert.assertEquals(ExternalESSink.class, router.defaultSink.getClass());
@@ -70,27 +71,27 @@ public class RouterTest {
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         
-		AuditMessageRouter router = new AuditMessageRouter(settings, null, null, null);
+		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
         AuditMessage msg = MockAuditMessageFactory.validAuditMessage(Category.MISSING_PRIVILEGES);
         router.route(msg);
         testMessageDeliveredForCategory(router, msg, Category.MISSING_PRIVILEGES, "endpoint1", "endpoint2", "default");
         
-        router = new AuditMessageRouter(settings, null, null, null);
+        router = createMessageRouterComplianceEnabled(settings);
         msg = MockAuditMessageFactory.validAuditMessage(Category.COMPLIANCE_DOC_READ);
         router.route(msg);
         testMessageDeliveredForCategory(router, msg, Category.COMPLIANCE_DOC_READ, "endpoint3");
 
-        router = new AuditMessageRouter(settings, null, null, null);
+        router = createMessageRouterComplianceEnabled(settings);
         msg = MockAuditMessageFactory.validAuditMessage(Category.COMPLIANCE_DOC_WRITE);
         router.route(msg);
         testMessageDeliveredForCategory(router, msg, Category.COMPLIANCE_DOC_WRITE, "default");
 
-        router = new AuditMessageRouter(settings, null, null, null);
+        router = createMessageRouterComplianceEnabled(settings);
         msg = MockAuditMessageFactory.validAuditMessage(Category.FAILED_LOGIN);
         router.route(msg);
         testMessageDeliveredForCategory(router, msg, Category.FAILED_LOGIN, "default");
 
-        router = new AuditMessageRouter(settings, null, null, null);
+        router = createMessageRouterComplianceEnabled(settings);
         msg = MockAuditMessageFactory.validAuditMessage(Category.GRANTED_PRIVILEGES);
         router.route(msg);
         testMessageDeliveredForCategory(router, msg, Category.GRANTED_PRIVILEGES, "default");

@@ -68,7 +68,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
 	public AuditLogImpl(final Settings settings, final Path configPath, Client clientProvider, ThreadPool threadPool,
 			final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
 		super(settings, threadPool, resolver, clusterService);
-		final String type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, null);
+		//final String type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, null);
 
 		this.messageRouter = new AuditMessageRouter(settings, clientProvider, threadPool, configPath);
 

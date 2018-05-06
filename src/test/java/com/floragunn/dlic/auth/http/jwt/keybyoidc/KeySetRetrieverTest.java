@@ -89,7 +89,7 @@ public class KeySetRetrieverTest {
 				try {
 					String sha256Fingerprint = Hashing.sha256().hashBytes(peerCert.getEncoded()).toString();
 
-					Assert.assertEquals("c81a111272028c5e670b96e56bc5660a23b103d7b7962d14122b2a9a021885a2",
+					Assert.assertEquals("04b2b8baea7a0a893f0223d95b72081e9a1e154a0f9b1b4e75998085972b1b68",
 							sha256Fingerprint);
 
 				} catch (CertificateEncodingException e) {

@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.Map.Entry;
 
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -112,10 +111,10 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator implements HTTPAuthenticator
 		JwtToken jwt;
 
 		try {
-			jwt = jwtVerifier.getJwtToken(jwtString);
+			jwt = jwtVerifier.getVerifiedJwtToken(jwtString);
 		} catch (AuthenticatorUnavailableException e) {
 			throw new ElasticsearchSecurityException(e.getMessage(), RestStatus.SERVICE_UNAVAILABLE);
-		} catch (JwtException e) {
+		} catch (BadCredentialsException e) {
 			log.info("Extracting JWT token from " + jwtString + " failed", e);
 			return null;
 		}

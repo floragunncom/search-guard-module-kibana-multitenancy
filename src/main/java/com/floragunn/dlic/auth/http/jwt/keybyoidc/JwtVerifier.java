@@ -14,13 +14,10 @@
 
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
-import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
-import org.apache.cxf.rs.security.jose.jwe.JweHeaders;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jws.JwsHeaders;
+import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
 import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
 import org.apache.cxf.rs.security.jose.jws.JwsUtils;
-import org.apache.cxf.rs.security.jose.jwt.JoseJwtConsumer;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
@@ -28,7 +25,7 @@ import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 
 import com.google.common.base.Strings;
 
-public class JwtVerifier extends JoseJwtConsumer {
+public class JwtVerifier {
 
 	private final KeyProvider keyProvider;
 
@@ -36,43 +33,50 @@ public class JwtVerifier extends JoseJwtConsumer {
 		this.keyProvider = keyProvider;
 	}
 
-	protected final JwsSignatureVerifier getInitializedSignatureVerifier(JwtToken jwt) {
-		return getInitializedSignatureVerifier(jwt.getJwsHeaders());
+	public JwtToken getVerifiedJwtToken(String encodedJwt) throws BadCredentialsException {
+		try {
+			JwsJwtCompactConsumer jwtConsumer = new JwsJwtCompactConsumer(encodedJwt);
+			JwtToken jwt = jwtConsumer.getJwtToken();
+			JsonWebKey key = keyProvider.getKey(jwt.getJwsHeaders().getKeyId());
+			JwsSignatureVerifier signatureVerifier = getInitializedSignatureVerifier(key);
+
+			boolean signatureValid = jwtConsumer.verifySignatureWith(signatureVerifier);
+
+			if (!signatureValid && Strings.isNullOrEmpty(jwt.getJwsHeaders().getKeyId())) {
+				key = keyProvider.getKeyAfterRefresh(null);
+				signatureVerifier = getInitializedSignatureVerifier(key);
+				signatureValid = jwtConsumer.verifySignatureWith(signatureVerifier);
+			}
+
+			if (!signatureValid) {
+				throw new BadCredentialsException("Invalid JWT signature");
+			}
+
+			validateClaims(jwt);
+
+			return jwt;
+		} catch (JwtException e) {
+			throw new BadCredentialsException(e.getMessage(), e);
+		}
 	}
 
-	protected JwsSignatureVerifier getInitializedSignatureVerifier(JwsHeaders jwsHeaders) {
-		String keyId = jwsHeaders.getKeyId();
+	private JwsSignatureVerifier getInitializedSignatureVerifier(JsonWebKey key)
+			throws BadCredentialsException, JwtException {
+		JwsSignatureVerifier result = JwsUtils.getSignatureVerifier(key);
 
-		if (Strings.isNullOrEmpty(keyId)) {
-			throw new JwtException("JWT did not contain kid (Headers: " + jwsHeaders + ")");
-		}
-
-		JsonWebKey key = keyProvider.getKeyByKid(keyId);
-
-		if (key != null) {
-			return JwsUtils.getSignatureVerifier(key);
+		if (result == null) {
+			throw new BadCredentialsException("Cannot verify JWT");
 		} else {
-			throw new JwtException("Unknown kid " + keyId + " (Headers: " + jwsHeaders + ")");
+			return result;
 		}
 	}
 
-	protected JweDecryptionProvider getInitializedDecryptionProvider(JweHeaders jweHeaders) {
-		return null;
-	}
-
-	public boolean isJwsRequired() {
-		return true;
-	}
-
-	@Override
-	protected void validateToken(JwtToken jwt) {
-		super.validateToken(jwt);
-
+	private void validateClaims(JwtToken jwt) throws BadCredentialsException, JwtException {
 		JwtClaims claims = jwt.getClaims();
 
 		if (claims != null) {
-			JwtUtils.validateJwtExpiry(claims, getClockOffset(), false);
-			JwtUtils.validateJwtNotBefore(claims, getClockOffset(), false);
+			JwtUtils.validateJwtExpiry(claims, 0, false);
+			JwtUtils.validateJwtNotBefore(claims, 0, false);
 		}
 	}
 }

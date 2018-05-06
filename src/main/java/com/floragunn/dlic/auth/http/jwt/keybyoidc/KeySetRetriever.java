@@ -197,6 +197,8 @@ public class KeySetRetriever implements KeySetProvider {
 			builder = HttpClients.custom();
 		}
 
+		builder.useSystemProperties();
+		
 		if (sslConfig != null) {
 			builder.setSSLSocketFactory(sslConfig.toSSLConnectionSocketFactory());
 		}

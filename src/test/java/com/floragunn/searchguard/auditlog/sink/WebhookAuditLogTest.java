@@ -363,7 +363,7 @@ public class WebhookAuditLogTest {
         TestHttpHandler handler = new TestHttpHandler();
 
         server = ServerBootstrap.bootstrap()
-                .setListenerPort(8083)
+                .setListenerPort(8090)
                 .setServerInfo("Test/1.1")
                 .setSslContext(createSSLContext())
                 .registerHandler("*", handler)
@@ -372,7 +372,7 @@ public class WebhookAuditLogTest {
         server.start();
         AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 
-        String url = "https://localhost:8083/endpoint";
+        String url = "https://localhost:8090/endpoint";
         
         // try with ssl verification on, no trust ca, must fail
         Settings settings = Settings.builder()
@@ -561,7 +561,7 @@ public class WebhookAuditLogTest {
         TestHttpHandler handler = new TestHttpHandler();
 
         server = ServerBootstrap.bootstrap()
-                .setListenerPort(8085)
+                .setListenerPort(8091)
                 .setServerInfo("Test/1.1")
                 .setSslContext(createSSLContext())
                 .registerHandler("*", handler)
@@ -571,7 +571,7 @@ public class WebhookAuditLogTest {
         AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
         LoggingSink fallback =  new LoggingSink("test", null, null, null);
         
-        String url = "https://localhost:8085/endpoint";
+        String url = "https://localhost:8091/endpoint";
         
         // test default with filepath
         handler.reset();

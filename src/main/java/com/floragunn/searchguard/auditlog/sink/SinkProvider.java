@@ -45,17 +45,19 @@ public class SinkProvider {
 		this.configPath = configPath;
 
 		// fall back sink, make sure we don't lose messages
-		Settings fallbackSinkSettings = settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_FALLBACK);
+		String fallbackConfigPrefix = ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS + ".fallback";
+		Settings fallbackSinkSettings = settings.getAsSettings(fallbackConfigPrefix);
 		if(!fallbackSinkSettings.isEmpty()) {
-			this.fallbackSink = createSink("fallback", fallbackSinkSettings.get("type"), settings, fallbackSinkSettings.getAsSettings("config"));
+			this.fallbackSink = createSink("fallback", fallbackSinkSettings.get("type"), settings, fallbackConfigPrefix+".config");
 		}
+
 		// make sure we always have a fallback to write to
 		if (this.fallbackSink == null) {
 			this.fallbackSink = new DebugSink("fallback", null);
 		}
 
 		// create default sink
-		defaultSink = this.createSink("default", settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT), settings, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT));
+		defaultSink = this.createSink("default", settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT), settings, ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT);
 		if (defaultSink == null) {
 			log.error("Default endpoint could not be created, auditlog will not work properly. Using debug storage endpoint instead.");
 			defaultSink = new DebugSink("default", fallbackSink);
@@ -67,14 +69,16 @@ public class SinkProvider {
 
 		for (Entry<String, Object> sinkEntry : sinkSettingsMap.entrySet()) {
 			String sinkName = sinkEntry.getKey();
-			Settings sinkSettings = settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS + "." + sinkName);
-			String type = sinkSettings.get("type");
-			Settings sinkConfiguration = sinkSettings.getAsSettings("config");
+			// do not create fallback twice
+			if(sinkName.toLowerCase().equals("fallback")) {
+				continue;
+			}
+			String type = settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS + "." + sinkName).get("type");							
 			if (type == null) {
 				log.error("No type defined for endpoint {}.", sinkName);
 				continue;
 			}
-			AuditLogSink sink = createSink(sinkName, type, this.settings, sinkConfiguration);
+			AuditLogSink sink = createSink(sinkName, type, this.settings, ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS + "." + sinkName + ".config");
 			if (sink == null) {
 				log.error("Endpoint '{}' could not be created, check log file for further information.", sinkName);
 				continue;
@@ -109,23 +113,23 @@ public class SinkProvider {
 		}
 	}
 
-	private final AuditLogSink createSink(final String name, final String type, final Settings settings, final Settings sinkSettings) {
+	private final AuditLogSink createSink(final String name, final String type, final Settings settings, final String settingsPrefix) {
 		AuditLogSink sink = null;
 		if (type != null) {
 			switch (type.toLowerCase()) {
 			case "internal_elasticsearch":
-				sink = new InternalESSink(name, settings, sinkSettings, configPath, clientProvider, threadPool, fallbackSink);
+				sink = new InternalESSink(name, settings, settingsPrefix, configPath, clientProvider, threadPool, fallbackSink);
 				break;
 			case "external_elasticsearch":
 				try {
-					sink = new ExternalESSink(name, settings, sinkSettings, configPath, fallbackSink);
+					sink = new ExternalESSink(name, settings, settingsPrefix, configPath, fallbackSink);
 				} catch (Exception e) {
 					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to", e);
 				}
 				break;
 			case "webhook":
 				try {
-					sink = new WebhookSink(name, settings, sinkSettings, configPath, fallbackSink);
+					sink = new WebhookSink(name, settings, settingsPrefix, configPath, fallbackSink);
 				} catch (Exception e1) {
 					log.error("Audit logging unavailable: Unable to setup WebhookAuditLog due to", e1);
 				}
@@ -134,20 +138,20 @@ public class SinkProvider {
 				sink = new DebugSink(name, fallbackSink);
 				break;
 			case "log4j":
-				sink = new Log4JSink(name, settings, sinkSettings, fallbackSink);
+				sink = new Log4JSink(name, settings, settingsPrefix, fallbackSink);
 				break;
 			case "kafka":
-				sink = new KafkaSink(name, settings, sinkSettings, fallbackSink);
+				sink = new KafkaSink(name, settings, settingsPrefix, fallbackSink);
 				break;
 			default:
 				try {
 					Class<?> delegateClass = Class.forName(type);
 					if (AuditLogSink.class.isAssignableFrom(delegateClass)) {
 						try {
-							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class, Settings.class, Path.class, Client.class, ThreadPool.class, AuditLogSink.class).newInstance(name, settings, sinkSettings, configPath,
+							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class, String.class, Path.class, Client.class, ThreadPool.class, AuditLogSink.class).newInstance(name, settings, settingsPrefix, configPath,
 									clientProvider, threadPool, fallbackSink);
 						} catch (Throwable e) {
-							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class, Settings.class, AuditLogSink.class).newInstance(name, settings, sinkSettings, fallbackSink);
+							sink = (AuditLogSink) delegateClass.getConstructor(String.class, Settings.class, String.class, AuditLogSink.class).newInstance(name, settings, settingsPrefix, fallbackSink);
 						}
 					} else {
 						log.error("Audit logging unavailable: '{}' is not a subclass of {}", type, AuditLogSink.class.getSimpleName());
@@ -159,4 +163,5 @@ public class SinkProvider {
 		}
 		return sink;
 	}
+
 }

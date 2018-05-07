@@ -25,7 +25,7 @@ public class LoggingSink extends AuditLogSink {
 	public List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
     public StringBuffer sb = new StringBuffer();
     
-    public LoggingSink(String name, Settings settings, Settings sinkSetting, AuditLogSink fallbackSink) {
+    public LoggingSink(String name, Settings settings, String settingsPrefix, AuditLogSink fallbackSink) {
         super(name, null, null, fallbackSink);
     }
 

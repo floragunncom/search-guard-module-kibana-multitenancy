@@ -56,15 +56,17 @@ public class WebhookSink extends AuditLogSink {
 	final boolean verifySSL;
 	final KeyStore effectiveTruststore;
 
-    public WebhookSink(final String name, final Settings settings, final Settings sinkConfig, final Path configPath, AuditLogSink fallbackSink) throws Exception {
-	    super(name, settings, sinkConfig, fallbackSink);
+    public WebhookSink(final String name, final Settings settings, final String settingsPrefix, final Path configPath, AuditLogSink fallbackSink) throws Exception {
+	    super(name, settings, settingsPrefix, fallbackSink);
 		
-		this.effectiveTruststore = getEffectiveKeyStore(configPath);
+	    Settings sinkSettings = settings.getAsSettings(settingsPrefix);
+		
+	    this.effectiveTruststore = getEffectiveKeyStore(configPath);
 				
-		final String webhookUrl = sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_URL);
-		final String format = sinkConfig.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_FORMAT);
+		final String webhookUrl = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_URL);
+		final String format = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_FORMAT);
 		
-		verifySSL = sinkConfig.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_SSL_VERIFY, true);
+		verifySSL = sinkSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_SSL_VERIFY, true);
 		httpClient = getHttpClient();
 		
 		if(httpClient == null) {
@@ -303,14 +305,17 @@ public class WebhookSink extends AuditLogSink {
 			@Override
 			public KeyStore run() {
 				try {
-					final boolean pem = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
-			                || settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
+					Settings sinkSettings = settings.getAsSettings(settingsPrefix);
+					
+					final boolean pem = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
+			                || sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
 
 					if(pem) {
-					    X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, settings));
+					    X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, sinkSettings));
 			            
 			            if(trustCertificates == null) {
-			                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, settings, configPath, false));
+			            	String fullPath = settingsPrefix + "." + ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH;
+			                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(fullPath, settings, configPath, false));
 			            }
 			            
 			            return PemKeyReader.toTruststore("alw", trustCertificates);

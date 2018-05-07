@@ -27,9 +27,9 @@ import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 
 public class MyOwnAuditLog extends AuditLogSink {
 
-	public MyOwnAuditLog(final String name, final Settings settings, final Settings sinkSettings, final Path configPath, final ThreadPool threadPool,
+	public MyOwnAuditLog(final String name, final Settings settings, final String settingsPrefix, final Path configPath, final ThreadPool threadPool,
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService, AuditLogSink fallbackSink) {
-        super(name, settings, sinkSettings, fallbackSink);
+        super(name, settings, settingsPrefix, fallbackSink);
     }
 
     @Override

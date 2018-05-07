@@ -27,7 +27,7 @@ public class TestAuditlogImpl extends AuditLogSink {
     public static List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
     public static StringBuffer sb = new StringBuffer();
     
-    public TestAuditlogImpl(String name, Settings settings, Settings sinkSettings, AuditLogSink fallbackSink) {
+    public TestAuditlogImpl(String name, Settings settings, String settingsPrefix, AuditLogSink fallbackSink) {
         super(name, null, null, fallbackSink);
     }
 

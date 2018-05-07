@@ -75,4 +75,6 @@ public class SinkProviderTest {
 		Assert.assertEquals("myownindex", sink.index);
 		Assert.assertEquals("auditevents", sink.type);
 	}
+	
+
 }

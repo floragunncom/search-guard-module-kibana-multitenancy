@@ -40,10 +40,11 @@ public class KafkaSink extends AuditLogSink {
 	private Producer<Long, String> producer;
 	private String topicName;
 
-	public KafkaSink(final String name, final Settings settings, final Settings sinkSettings, AuditLogSink fallbackSink) {
-		super(name, settings, sinkSettings, fallbackSink);
-
-		checkMandatorySinkSettings();
+	public KafkaSink(final String name, final Settings settings, final String settingsPrefix, AuditLogSink fallbackSink) {
+		super(name, settings, settingsPrefix, fallbackSink);
+		
+		Settings sinkSettings = settings.getAsSettings(settingsPrefix);
+		checkMandatorySinkSettings(sinkSettings);
 
 		if (!valid) {
 			log.error("Failed to configure Kafka producer, please check the logfile.");
@@ -113,7 +114,7 @@ public class KafkaSink extends AuditLogSink {
 		return true;
 	}
 
-	private void checkMandatorySinkSettings() {
+	private void checkMandatorySinkSettings(Settings sinkSettings) {
 	    for(String mandatory: mandatoryProperties) {
 	        String value = sinkSettings.get(mandatory);
 	        if (value == null || value.length() == 0) {

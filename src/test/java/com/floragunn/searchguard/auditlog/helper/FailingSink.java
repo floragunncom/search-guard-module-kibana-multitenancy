@@ -20,7 +20,7 @@ import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 
 public class FailingSink extends AuditLogSink{
 
-    public FailingSink(String name, Settings settings, Settings sinkSetting, AuditLogSink fallbackSink) {
+    public FailingSink(String name, Settings settings, String sinkPrefix, AuditLogSink fallbackSink) {
         super(name, null, null, fallbackSink);
     }
     

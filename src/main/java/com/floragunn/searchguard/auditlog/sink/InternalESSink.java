@@ -39,10 +39,11 @@ public final class InternalESSink extends AuditLogSink {
 	private DateTimeFormatter indexPattern;
 	private final ThreadPool threadPool;
 
-	public InternalESSink(final String name, final Settings settings, final Settings sinkSettings, final Path configPath, final Client clientProvider, ThreadPool threadPool, AuditLogSink fallbackSink) {
-		super(name, settings, sinkSettings, fallbackSink);
+	public InternalESSink(final String name, final Settings settings, final String settingsPrefix, final Path configPath, final Client clientProvider, ThreadPool threadPool, AuditLogSink fallbackSink) {
+		super(name, settings, settingsPrefix, fallbackSink);
 		this.clientProvider = clientProvider;
-
+		Settings sinkSettings = getSinkSettings(settingsPrefix);
+		
 		this.index = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX, "'sg6-auditlog-'YYYY.MM.dd");
 		this.type = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE, "auditlog");
 

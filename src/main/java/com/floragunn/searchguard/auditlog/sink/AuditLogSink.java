@@ -29,14 +29,14 @@ public abstract class AuditLogSink {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Settings settings;
-    protected final Settings sinkSettings;
+    protected final String settingsPrefix;
     private final String name;
     final AuditLogSink fallbackSink;
     
-    protected AuditLogSink(String name, Settings settings, Settings sinkConfiguration, AuditLogSink fallbackSink) {
+    protected AuditLogSink(String name, Settings settings, String settingsPrefix, AuditLogSink fallbackSink) {
         this.name = name.toLowerCase();
     	this.settings = settings;
-        this.sinkSettings = sinkConfiguration;
+        this.settingsPrefix = settingsPrefix;
         this.fallbackSink = fallbackSink;
     }
     
@@ -73,7 +73,10 @@ public abstract class AuditLogSink {
         return indexPattern.print(DateTime.now(DateTimeZone.UTC));
     }
     
-    
+    protected Settings getSinkSettings(String prefix) {
+    	return settings.getAsSettings(prefix);
+    }
+
     @Override
     public String toString() {    	
     	return ("AudtLogSink: Name: " + name+", type: " + this.getClass().getSimpleName());

@@ -46,10 +46,10 @@ public final class ExternalESSink extends AuditLogSink {
 	
     static final String PKCS12 = "PKCS12";
 
-	public ExternalESSink(final String name, final Settings settings, final Settings sinkSettings, final Path configPath, AuditLogSink fallbackSink) throws Exception {
+	public ExternalESSink(final String name, final Settings settings, final String settingPrefix, final Path configPath, AuditLogSink fallbackSink) throws Exception {
 
-		super(name, settings, sinkSettings, fallbackSink);
-		
+		super(name, settings, settingPrefix, fallbackSink);
+		Settings sinkSettings = settings.getAsSettings(settingPrefix);
 		servers = sinkSettings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_HTTP_ENDPOINTS);
 		if (servers == null || servers.size() == 0) {
 			log.error("No http endpoints configured for external Elasticsearch endpoint '{}', falling back to localhost.", name);

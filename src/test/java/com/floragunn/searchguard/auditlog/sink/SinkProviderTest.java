@@ -12,6 +12,7 @@
  */
 package com.floragunn.searchguard.auditlog.sink;
 
+import org.apache.logging.log4j.Level;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
@@ -64,6 +65,27 @@ public class SinkProviderTest {
 		// wrong type in config
 		sink = provider.getSink("endpoint9");
 		Assert.assertEquals(ExternalESSink.class, sink.getClass());
+
+		// log4j, valid configuration
+		sink = provider.getSink("endpoint10");
+		Assert.assertEquals(Log4JSink.class, sink.getClass());
+		Log4JSink lsink = (Log4JSink)sink;
+		Assert.assertEquals("loggername", lsink.loggerName);
+		Assert.assertEquals(Level.WARN, lsink.logLevel);
+
+		// log4j, no level, fallback to default
+		sink = provider.getSink("endpoint11");
+		Assert.assertEquals(Log4JSink.class, sink.getClass());
+		lsink = (Log4JSink)sink;
+		Assert.assertEquals("loggername", lsink.loggerName);
+		Assert.assertEquals(Level.INFO, lsink.logLevel);
+
+		// log4j, wrong level, fallback to log4j default
+		sink = provider.getSink("endpoint12");
+		Assert.assertEquals(Log4JSink.class, sink.getClass());
+		lsink = (Log4JSink)sink;
+		Assert.assertEquals("loggername", lsink.loggerName);
+		Assert.assertEquals(Level.DEBUG, lsink.logLevel);
 
 	}
 

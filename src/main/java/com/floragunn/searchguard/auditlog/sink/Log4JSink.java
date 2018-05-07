@@ -24,12 +24,14 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 public final class Log4JSink extends AuditLogSink {
 
     final Logger auditLogger;
+    final String loggerName;
     final Level logLevel;
 
     public Log4JSink(final String name, final Settings settings, final String settingsPrefix, AuditLogSink fallbackSink) {
         super(name, settings, settingsPrefix, fallbackSink);
-        auditLogger = LogManager.getLogger(settings.get( settingsPrefix + "log4j.logger_name","sgaudit"));
-        logLevel = Level.toLevel(settings.get(settingsPrefix + "log4j.level","INFO").toUpperCase());
+        loggerName = settings.get( settingsPrefix + ".log4j.logger_name","sgaudit");
+        auditLogger = LogManager.getLogger(loggerName);        
+        logLevel = Level.toLevel(settings.get(settingsPrefix + ".log4j.level","INFO").toUpperCase());
     }
 
     /*public boolean isHandlingBackpressure() {

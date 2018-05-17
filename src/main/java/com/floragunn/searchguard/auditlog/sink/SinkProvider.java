@@ -137,6 +137,9 @@ public class SinkProvider {
 			case "debug":
 				sink = new DebugSink(name, fallbackSink);
 				break;
+            case "noop":
+                sink = new NoopSink(name, fallbackSink);
+                break;
 			case "log4j":
 				sink = new Log4JSink(name, settings, settingsPrefix, fallbackSink);
 				break;

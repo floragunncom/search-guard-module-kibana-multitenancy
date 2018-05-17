@@ -197,6 +197,9 @@ public final class FieldReadCallback {
             auditLog.logDocumentRead(doc.indexName, doc.id, shardId, f, complianceConfig);
         } catch (Exception e) {
             log.error("Unexpected error finished compliance read entry {} in index '{}': {}", doc.id, index.getName(), e.toString(), e);
+        } finally {
+            doc = null;
+            sfc = null;
         }
     }
 

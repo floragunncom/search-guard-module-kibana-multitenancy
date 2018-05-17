@@ -482,7 +482,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             msg.addId(id);
 
             try {
-                if(complianceConfig.logMetadataOnly()) {
+                if(complianceConfig.logReadMetadataOnly()) {
                     try {
                         XContentBuilder builder = XContentBuilder.builder(JsonXContent.jsonXContent);
                         builder.startObject();
@@ -542,7 +542,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addComplianceDocVersion(result.getVersion());
         msg.addComplianceOperation(result.isCreated()?Operation.CREATE:Operation.UPDATE);
 
-        if(!complianceConfig.logMetadataOnly()) {
+        if(complianceConfig.logDiffsForWrite()) {
 
             final Map<String, DocumentField> currentFields = currentGet.getFields();
 
@@ -550,7 +550,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 final Map<String, DocumentField> originalFields = originalIndex.getFields();
                 MapDifference<String, Object> mapDiff = Maps.difference(currentFields, originalFields);
                 msg.addComplianceWriteStoredFields(mapDiff.areEqual()?"":mapDiff.toString());
-            } else if (!complianceConfig.logDiffsOnlyForWrite() && currentGet.getFields().size() > 0) {
+            } else if (currentGet.getFields().size() > 0) {
                 msg.addComplianceWriteStoredFields(currentGet.getFields().toString());
             }
 
@@ -590,7 +590,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 } catch (Exception e) {
                     log.error("Unable to generate diff for {}",msg.toPrettyString(),e);
                 }
-            } else if (!complianceConfig.logDiffsOnlyForWrite()){
+            } else if (!complianceConfig.logWriteMetadataOnly()){
                 if(searchguardIndex.equals(shardId.getIndexName())) {
                     try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, currentIndex.source(), XContentType.JSON)) {
                        Object base64 = parser.map().values().iterator().next();

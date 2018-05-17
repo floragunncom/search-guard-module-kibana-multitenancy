@@ -89,8 +89,8 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
     }
 
     @Override
-    public Index preIndex(final ShardId shardId, final Index index) {
-        if(complianceConfig.isEnabled()) {
+    public Index preIndex(final ShardId shardId, final Index index) {       
+        if(complianceConfig.isEnabled() && complianceConfig.logDiffsForWrite()) {
             Objects.requireNonNull(is);
     
             final IndexShard shard;
@@ -153,14 +153,14 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
 
     @Override
     public void postIndex(final ShardId shardId, final Index index, final Exception ex) {
-        if(complianceConfig.isEnabled()) {
+        if(complianceConfig.isEnabled() && complianceConfig.logDiffsForWrite()) {
             threadContext.remove();
         }
     }
 
     @Override
     public void postIndex(ShardId shardId, Index index, IndexResult result) {
-        if(complianceConfig.isEnabled()) {
+        if(complianceConfig.isEnabled() && complianceConfig.logDiffsForWrite()) {
             final Context context = threadContext.get();// seq.remove(index.startTime()+"/"+shardId+"/"+index.type()+"/"+index.id());
             final GetResult previousContent = context==null?null:context.getGetResult();
             final String[] storedFieldsA = context==null?null:context.getStoredFields();
@@ -194,6 +194,13 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
             }
     
             auditlog.logDocumentWritten(shardId, previousContent, getResult, index, result, complianceConfig);
+        } else if (complianceConfig.isEnabled()) {
+            //no diffs
+            if (result.hasFailure() || index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
+                return;
+            }
+            
+            auditlog.logDocumentWritten(shardId, null, null, index, result, complianceConfig);
         }
     }
 

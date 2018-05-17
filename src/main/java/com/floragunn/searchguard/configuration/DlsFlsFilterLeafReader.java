@@ -348,7 +348,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
     private class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
 
         private final StoredFieldVisitor delegate;
-        private final FieldReadCallback fieldReadCallback = 
+        private FieldReadCallback fieldReadCallback = 
                 new FieldReadCallback(threadContext, indexService, clusterService, complianceConfig, auditlog, maskedFields, shardId);
 
         public ComplianceAwareStoredFieldVisitor(final StoredFieldVisitor delegate) {
@@ -415,6 +415,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
         public void finished() {
             fieldReadCallback.finished();
+            fieldReadCallback = null;
         }
 
     }
@@ -572,9 +573,9 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
     }
     
     private byte[] hash(byte[] in) {
-        Blake2bDigest hash = new Blake2bDigest(null, 32, null, complianceConfig.getSalt16());
+        final Blake2bDigest hash = new Blake2bDigest(null, 32, null, complianceConfig.getSalt16());
         hash.update(in, 0, in.length);
-        byte[] out = new byte[hash.getDigestSize()];
+        final byte[] out = new byte[hash.getDigestSize()];
         hash.doFinal(out, 0);
         return Hex.encode(out);
     }

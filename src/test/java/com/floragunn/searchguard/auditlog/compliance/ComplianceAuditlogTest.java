@@ -91,7 +91,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_METADATA_ONLY, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_LOG_DIFFS, true)
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false)
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
@@ -140,7 +140,6 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_METADATA_ONLY, false)
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, true)
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
@@ -180,7 +179,6 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_METADATA_ONLY, false)
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false)
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, false)
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_WATCHED_INDICES, "finance")
@@ -209,5 +207,58 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Thread.sleep(1500);
         Assert.assertTrue(TestAuditlogImpl.messages.isEmpty());
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
+    }
+    
+    @Test
+    public void testUpdatePerf() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_WATCHED_INDICES, "humanresources")
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, "humanresources,*")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+        TestAuditlogImpl.clear();
+        
+        /*try (TransportClient tc = getInternalTransportClient()) {
+            for(int i=0; i<5000; i++) {
+                
+            tc.prepareIndex("humanresources", "employees")
+            //.setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+            .setSource("Age", 456+i)
+            .execute();
+            }
+        }*/
+        
+        
+        
+        for(int i=0; i<1; i++) {
+            HttpResponse response = rh.executePostRequest("humanresources/employees/"+i+"", "{\"customer\": {\"Age\":"+i+"}}", encodeBasicHeader("admin", "admin"));
+            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+            System.out.println("==================");
+            response = rh.executePostRequest("humanresources/employees/"+i+"", "{\"customer\": {\"Age\":"+(i+2)+"}}", encodeBasicHeader("admin", "admin"));
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            System.out.println("==================");
+            response = rh.executePostRequest("humanresources/employees/"+i+"/_update?pretty", "{\"doc\": {\"doesel\":"+(i+3)+"}}", encodeBasicHeader("admin", "admin"));
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        }
+        
+        /*Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        System.out.println(response.getBody());
+        Thread.sleep(1500);
+        Assert.assertTrue(TestAuditlogImpl.messages.isEmpty());
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));*/
+        
+        Thread.sleep(1500);
+        System.out.println("Messages: "+TestAuditlogImpl.messages.size());
+        //System.out.println(TestAuditlogImpl.sb.toString());
+        
     }
 }

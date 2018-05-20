@@ -1,6 +1,6 @@
 searchguard:
   audit:
-    type: xxxxxxxelasticsearch
+    type: debug
     endpoints:
       endpoint1:
         type: interrrrnal_elasticsearch

@@ -29,22 +29,19 @@ import com.floragunn.searchguard.support.ConfigConstants;
 public class AsyncStoragePool {
 
 	protected final Logger log = LogManager.getLogger(this.getClass());
-	
-	private final static int DEFAULT_THREAD_POOL_SIZE = 10;
-	private final static int DEFAULT_THREAD_POOL_MAX_QUEUE_LEN = 100 * 1000;
+
+	private static final int DEFAULT_THREAD_POOL_SIZE = 10;
+	private static final int DEFAULT_THREAD_POOL_MAX_QUEUE_LEN = 100 * 1000;
 
 	// package private for unit tests
 	final ExecutorService pool;
-	
+
 	int threadPoolSize;
 	int threadPoolMaxQueueLen;
-	
+
 	public AsyncStoragePool(final Settings settings) {
-		this.threadPoolSize = settings
-				.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_SIZE, DEFAULT_THREAD_POOL_SIZE).intValue();
-		this.threadPoolMaxQueueLen = settings
-				.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_MAX_QUEUE_LEN, DEFAULT_THREAD_POOL_MAX_QUEUE_LEN)
-				.intValue();
+		this.threadPoolSize = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_SIZE, DEFAULT_THREAD_POOL_SIZE).intValue();
+		this.threadPoolMaxQueueLen = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_MAX_QUEUE_LEN, DEFAULT_THREAD_POOL_MAX_QUEUE_LEN).intValue();
 
 		if (threadPoolSize <= 0) {
 			threadPoolSize = DEFAULT_THREAD_POOL_SIZE;
@@ -56,22 +53,18 @@ public class AsyncStoragePool {
 
 		this.pool = createExecutor(threadPoolSize, threadPoolMaxQueueLen);
 	}
-	
+
 	public void submit(AuditMessage message, AuditLogSink sink) {
 		try {
-			pool.submit(new Runnable() {
-				@Override
-				public void run() {
-					sink.store(message);
-					if (log.isTraceEnabled()) {
-						log.trace("stored on delegate {} asynchronously", sink.getClass().getSimpleName());
-					}
+			pool.submit(() -> {
+				sink.store(message);
+				if (log.isTraceEnabled()) {
+					log.trace("stored on delegate {} asynchronously", sink.getClass().getSimpleName());
 				}
 			});
 		} catch (Exception ex) {
-			log.error("Could not submit audit message {} to thread pool for delegate '{}' due to '{}'", message,
-					sink.getClass().getSimpleName(), ex.getMessage());
-			if(sink.getFallbackSink() != null) {
+			log.error("Could not submit audit message {} to thread pool for delegate '{}' due to '{}'", message, sink.getClass().getSimpleName(), ex.getMessage());
+			if (sink.getFallbackSink() != null) {
 				sink.getFallbackSink().store(message);
 			}
 		}
@@ -81,8 +74,7 @@ public class AsyncStoragePool {
 		if (log.isDebugEnabled()) {
 			log.debug("Create new executor with threadPoolSize: {} and maxQueueLen: {}", threadPoolSize, maxQueueLen);
 		}
-		return new ThreadPoolExecutor(threadPoolSize, threadPoolSize, 0L, TimeUnit.MILLISECONDS,
-				new LinkedBlockingQueue<Runnable>(maxQueueLen));
+		return new ThreadPoolExecutor(threadPoolSize, threadPoolSize, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(maxQueueLen));
 	}
 
 	public void close() {

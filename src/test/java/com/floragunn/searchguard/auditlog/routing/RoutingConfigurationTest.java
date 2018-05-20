@@ -19,7 +19,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
+import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
+import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.auditlog.sink.DebugSink;
 import com.floragunn.searchguard.auditlog.sink.ExternalESSink;
@@ -57,17 +59,12 @@ public class RoutingConfigurationTest extends AbstractAuditlogiUnitTest{
 	public void testNoDefaultSink() throws Exception {
 		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/configuration_no_default.yml")).build();
 		AuditMessageRouter router = createMessageRouterComplianceEnabled(settings);
-		// no default sink, we fall back to debug sink
-		Assert.assertEquals(DebugSink.class, router.defaultSink.getClass());
-		List<AuditLogSink> sinks = router.categorySinks.get(AuditMessage.Category.MISSING_PRIVILEGES);
-		// 3, since default is not valid but replaced with Debug
-		Assert.assertEquals(3, sinks.size());
-		Assert.assertEquals("default", sinks.get(0).getName());
-		Assert.assertEquals(DebugSink.class, sinks.get(0).getClass());
-		Assert.assertEquals("endpoint1", sinks.get(1).getName());
-		Assert.assertEquals(InternalESSink.class, sinks.get(1).getClass());
-		Assert.assertEquals("endpoint2", sinks.get(2).getName());
-		Assert.assertEquals(ExternalESSink.class, sinks.get(2).getClass());
+		// no default sink, audit log not enabled
+		Assert.assertEquals(false, router.isEnabled());
+		Assert.assertEquals(null, router.defaultSink);
+		Assert.assertEquals(0, router.categorySinks.size());
+		// make sure no exception is thrown		
+		router.route(MockAuditMessageFactory.validAuditMessage());		
 	}
 
 	@Test

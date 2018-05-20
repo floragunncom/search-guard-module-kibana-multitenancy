@@ -29,7 +29,8 @@ import com.floragunn.searchguard.support.ConfigConstants;
 public class SinkProvider {
 
 	protected final Logger log = LogManager.getLogger(this.getClass());
-
+	private static final String FALLBACKSINK_NAME = "fallback";
+	private static final String DEFAULTSINK_NAME = "default";
 	private final Client clientProvider;
 	private final ThreadPool threadPool;
 	private final Path configPath;
@@ -45,24 +46,27 @@ public class SinkProvider {
 		this.configPath = configPath;
 
 		// fall back sink, make sure we don't lose messages
-		String fallbackConfigPrefix = ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS + ".fallback";
+		String fallbackConfigPrefix = ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS + "." + FALLBACKSINK_NAME;
 		Settings fallbackSinkSettings = settings.getAsSettings(fallbackConfigPrefix);
 		if(!fallbackSinkSettings.isEmpty()) {
-			this.fallbackSink = createSink("fallback", fallbackSinkSettings.get("type"), settings, fallbackConfigPrefix+".config");
+			this.fallbackSink = createSink(FALLBACKSINK_NAME, fallbackSinkSettings.get("type"), settings, fallbackConfigPrefix+".config");
 		}
 
 		// make sure we always have a fallback to write to
 		if (this.fallbackSink == null) {
-			this.fallbackSink = new DebugSink("fallback", null);
+			this.fallbackSink = new DebugSink(FALLBACKSINK_NAME, null);
 		}
 
+		allSinks.put(FALLBACKSINK_NAME, this.fallbackSink);
+		
 		// create default sink
-		defaultSink = this.createSink("default", settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT), settings, ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT);
+		defaultSink = this.createSink(DEFAULTSINK_NAME, settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT), settings, ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT);
 		if (defaultSink == null) {
-			log.error("Default endpoint could not be created, auditlog will not work properly. Using debug storage endpoint instead.");
-			defaultSink = new DebugSink("default", fallbackSink);
+			log.error("Default endpoint could not be created, auditlog will not work properly.");
+			return;
 		}
-		allSinks.put("default", defaultSink);
+		
+		allSinks.put(DEFAULTSINK_NAME, defaultSink);
 		
 		// create all other sinks
 		Map<String, Object> sinkSettingsMap = Utils.convertJsonToxToStructuredMap(settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS));
@@ -70,7 +74,7 @@ public class SinkProvider {
 		for (Entry<String, Object> sinkEntry : sinkSettingsMap.entrySet()) {
 			String sinkName = sinkEntry.getKey();
 			// do not create fallback twice
-			if(sinkName.toLowerCase().equals("fallback")) {
+			if(sinkName.equalsIgnoreCase(FALLBACKSINK_NAME)) {
 				continue;
 			}
 			String type = settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS + "." + sinkName).get("type");							

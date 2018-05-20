@@ -53,10 +53,8 @@ public abstract class AuditLogSink {
     }
     
     public final void store(AuditMessage msg) {
-		if (!doStore(msg)) {
-			if (fallbackSink.doStore(msg)) {
-				System.out.println(msg.toPrettyString());
-			}
+		if (!doStore(msg) && !fallbackSink.doStore(msg)) {
+			System.err.println(msg.toPrettyString());
 		}
     }
     

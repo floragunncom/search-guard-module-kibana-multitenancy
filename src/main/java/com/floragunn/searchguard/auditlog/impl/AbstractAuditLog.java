@@ -99,15 +99,13 @@ public abstract class AbstractAuditLog implements AuditLog {
     private final List<String> ignoreAuditRequests;
     private final List<String> disabledRestCategories;
     private final List<String> disabledTransportCategories;
-    private final List<String> defaultDisabledCategories =
-            Arrays.asList(new String[]{Category.AUTHENTICATED.toString(), Category.GRANTED_PRIVILEGES.toString()});
-    private final List<String> defaultIgnoredUsers =
-            Arrays.asList(new String[]{"kibanaserver"});
+    private final List<String> defaultDisabledCategories = Arrays.asList(Category.AUTHENTICATED.toString(), Category.GRANTED_PRIVILEGES.toString());
+    private final List<String> defaultIgnoredUsers = Arrays.asList("kibanaserver");
     private final boolean excludeSensitiveHeaders;
 
     private final String searchguardIndex;
     private final ObjectMapper mapper = new ObjectMapper();
-    private final static List<String> writeClasses = new ArrayList<String>();
+    private static final List<String> writeClasses = new ArrayList<>();
     
     {
         writeClasses.add(IndexRequest.class.getSimpleName());

@@ -34,44 +34,17 @@ import com.floragunn.searchguard.support.ConfigConstants;
 public final class AuditLogImpl extends AbstractAuditLog {
 
 	private final AuditMessageRouter messageRouter;
-
-	private static void printLicenseInfo() {
-		final StringBuilder sb = new StringBuilder();
-		sb.append("******************************************************" + System.lineSeparator());
-		sb.append("Search Guard Audit Log is not free software" + System.lineSeparator());
-		sb.append("for commercial use in production." + System.lineSeparator());
-		sb.append("You have to obtain a license if you " + System.lineSeparator());
-		sb.append("use it in production." + System.lineSeparator());
-		sb.append(System.lineSeparator());
-		sb.append("See https://floragunn.com/searchguard-validate-license" + System.lineSeparator());
-		sb.append("In case of any doubt mail to <sales@floragunn.com>" + System.lineSeparator());
-		sb.append("*****************************************************" + System.lineSeparator());
-
-		final String licenseInfo = sb.toString();
-
-		if (!Boolean.getBoolean("sg.display_lic_none")) {
-
-			if (!Boolean.getBoolean("sg.display_lic_only_stdout")) {
-				LogManager.getLogger(AuditLogImpl.class).warn(licenseInfo);
-				System.err.println(licenseInfo);
-			}
-
-			System.out.println(licenseInfo);
-		}
-
-	}
-
-	static {
-		// printLicenseInfo();
-	}
-
+	private final boolean enabled;
+	
 	public AuditLogImpl(final Settings settings, final Path configPath, Client clientProvider, ThreadPool threadPool,
 			final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
 		super(settings, threadPool, resolver, clusterService);
-		//final String type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, null);
 
 		this.messageRouter = new AuditMessageRouter(settings, clientProvider, threadPool, configPath);
-
+		this.enabled = messageRouter.isEnabled();
+		
+		log.info("Message routing enabled: {}", this.enabled);
+		
 		final SecurityManager sm = System.getSecurityManager();
 
 		if (sm != null) {
@@ -112,7 +85,9 @@ public final class AuditLogImpl extends AbstractAuditLog {
 
 	@Override
 	protected void save(final AuditMessage msg) {
-		messageRouter.route(msg);
+		if (enabled) {
+			messageRouter.route(msg);	
+		}		
 	}
 	
 }

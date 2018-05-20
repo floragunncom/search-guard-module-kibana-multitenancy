@@ -16,6 +16,7 @@ package com.floragunn.searchguard.auditlog.routing;
 
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -40,9 +41,10 @@ public class AuditMessageRouter {
 
 	protected final Logger log = LogManager.getLogger(this.getClass());	
 	final AuditLogSink defaultSink;
-	final Map<Category, List<AuditLogSink>> categorySinks = new HashMap<>();
+	final Map<Category, List<AuditLogSink>> categorySinks = new EnumMap<>(Category.class);
 	final SinkProvider sinkProvider;
 	final AsyncStoragePool storagePool;
+	final boolean enabled;
 	boolean hasMultipleEndpoints;
 	private ComplianceConfig complianceConfig;
 	
@@ -53,15 +55,55 @@ public class AuditMessageRouter {
 		// get the default sink
 		this.defaultSink = sinkProvider.getDefaultSink();
 		if (defaultSink == null) {
-			log.warn("No default storage available, audit log may not work properly. Please check configuration. Using debug storage type instead.");			
-		}
-		
-		// create sinks for all categories. Only do that if we have any extended setting, otherwise there is just the default category
-		setupRoutes(settings);			
+			log.warn("No default storage available, audit log may not work properly. Please check configuration.");
+			enabled = false;
+		} else {
+			// create sinks for all categories. Only do that if we have any extended setting, otherwise there is just the default category
+			setupRoutes(settings);
+			enabled = true;			
+		}		
 	}
 	
 	public void setComplianceConfig(ComplianceConfig complianceConfig) {
 		this.complianceConfig = complianceConfig;		
+	}
+	
+	public boolean isEnabled() {
+		return this.enabled;
+	}
+
+	public final void route(final AuditMessage msg) {
+		if (!enabled) {
+			// should not happen since we check in AuditLogImpl, so this is just a safeguard
+			log.error("#route(AuditMessage) called but message router is disabled");
+			return;
+		}
+		// if we do not run the compliance features or no extended configuration is present, only log to default.
+		if (!hasMultipleEndpoints || complianceConfig == null || !complianceConfig.isEnabled()) {
+			store(defaultSink, msg);
+		} else {
+			for (AuditLogSink sink : categorySinks.get(msg.getCategory())) {
+				store(sink, msg);
+			}			
+		}
+	}
+
+	public final void close() {
+		// shutdown storage pool
+		storagePool.close();
+		// close default
+		sinkProvider.close();
+	}
+
+	protected final void close(List<AuditLogSink> sinks) {
+		for (AuditLogSink sink : sinks) {
+			try {
+				log.info("Closing {}", sink.getClass().getSimpleName());
+				sink.close();
+			} catch (Exception ex) {
+				log.info("Could not close delegate '{}' due to '{}'", sink.getClass().getSimpleName(), ex.getMessage());
+			}
+		}
 	}
 	
 	private final void setupRoutes(Settings settings) {
@@ -75,22 +117,20 @@ public class AuditMessageRouter {
 				String categoryName = routesEntry.getKey();
 				try {
 					Category category = Category.valueOf(categoryName.toUpperCase());
-					// warn for duplicate definitions
-					List<AuditLogSink> sinksForCategory = categorySinks.get(category);
+					// warn for duplicate definitions					
 					if (categorySinks.get(category) != null) {
 						log.warn("Duplicate routing configuration detected for category {}, skipping.", category);
 						continue;
 					} 
-					sinksForCategory = createSinksForCategory(category, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES + "." + categoryName));
-					if (sinksForCategory.size() > 0) {
+					List<AuditLogSink> sinksForCategory = createSinksForCategory(category, settings.getAsSettings(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES + "." + categoryName));
+					if (!sinksForCategory.isEmpty()) {
 						categorySinks.put(category, sinksForCategory);
 						if(log.isTraceEnabled()) {
 							log.debug("Created {} endpoints for category {}", sinksForCategory.size(), category );
 						}					
 					} else {
-						if(log.isDebugEnabled()) {
-							log.debug("No valid endpoints found for category {} adding only default.", category );
-						}										
+						log.debug("No valid endpoints found for category {} adding only default.", category );
+									
 					}
 				} catch (Exception e ) {
 					log.error("Invalid category '{}' found in routing configuration. Must be one of: {}", categoryName, Category.values());
@@ -111,7 +151,7 @@ public class AuditMessageRouter {
 	private final List<AuditLogSink> createSinksForCategory(Category category, Settings configuration) {
 		List<AuditLogSink> sinksForCategory = new LinkedList<>();
 		List<String> sinks = configuration.getAsList("endpoints");
-		if (sinks == null || sinks.size() == 0) {
+		if (sinks == null || sinks.isEmpty()) {
 			log.error("No endpoints configured for category {}", category);
 			return sinksForCategory;
 		}
@@ -124,16 +164,6 @@ public class AuditMessageRouter {
 			}
 		}
 		return sinksForCategory;
-	}
-
-	public final void route(final AuditMessage msg) {
-		if (!hasMultipleEndpoints || complianceConfig == null || !complianceConfig.isEnabled()) {
-			store(defaultSink, msg);
-		} else {
-			for (AuditLogSink sink : categorySinks.get(msg.getCategory())) {
-				store(sink, msg);
-			}			
-		}
 	}
 	
 	private final void store(AuditLogSink sink, AuditMessage msg) {
@@ -148,24 +178,6 @@ public class AuditMessageRouter {
 				log.trace("will store on sink {} asynchronously", sink.getClass().getSimpleName());
 			}
 		}		
-	}
-
-	public final void close() {
-		// shutdown storage pool
-		storagePool.close();
-		// close default
-		sinkProvider.close();
-	}
-
-	protected final void close(List<AuditLogSink> sinks) {
-		for (AuditLogSink sink : sinks) {
-			try {
-				log.info("Closing {}", sink.getClass().getSimpleName());
-				sink.close();
-			} catch (Exception ex) {
-				log.info("Could not close delegate '{}' due to '{}'", sink.getClass().getSimpleName(), ex.getMessage());
-			}
-		}
 	}
 
 }

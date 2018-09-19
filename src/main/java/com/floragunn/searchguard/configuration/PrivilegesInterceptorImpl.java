@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -638,37 +639,37 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             return false;
         }
         
-        Entry<String, Set<IndexType>> min = null;
-        
-        //find role with smallest number of leftovers
-        //what when two ore more als equal in size??
-        
+        final Set<String> allLeftoverIndices = new HashSet<String>();
         for(Entry<String, Set<IndexType>> entry: leftOvers.entrySet()) {
-            if(min == null || entry.getValue().size() < min.getValue().size()) {
-                min = entry;
-            }
+            allLeftoverIndices.addAll(entry.getValue().stream().map(e->e.getIndex()).collect(Collectors.toSet()));
         }
-        
-        if(min == null) {
-            log.warn("No valid leftover found");
-            return false;
-        }
+
 
         final Set<String> leftOversIndex = new HashSet<String>();
 
-        for (IndexType indexType: min.getValue()) {
-            leftOversIndex.add(indexType.getIndex());
+        for(String leftover: allLeftoverIndices) {
+            
+            boolean noPerm=true;
+            
+            for(Entry<String, Set<IndexType>> entry: leftOvers.entrySet()) {
+                noPerm = containsIndex(entry.getValue(), leftover) && noPerm;
+            }
+            
+            if(noPerm) {
+                leftOversIndex.add(leftover);
+            }
         }
+
 
         if(log.isDebugEnabled()) {
             log.debug("handle {}/{} for leftovers {}", action, request.getClass(), leftOversIndex);
         }
         
-        if (request instanceof CompositeIndicesRequest && !(request instanceof DocWriteRequest)) {
+        if (request instanceof CompositeIndicesRequest) {
             
             if(request instanceof BulkRequest) {
 
-                for(DocWriteRequest ar: ((BulkRequest) request).requests()) {
+                for(DocWriteRequest<?> ar: ((BulkRequest) request).requests()) {
                     final boolean ok = applyIndexReduce0(ar, action, leftOversIndex);
                     if (!ok) {
                         return false;
@@ -701,8 +702,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                         return false;
                     }
                 }
+                
+            } else if (request instanceof Replaceable) {
+                applyIndexReduce0(request, action, leftOversIndex);
             } else {
-                log.warn("Can not handle composite request of type '"+request+"' here (replaceAllowedIndices())");
+                log.warn("Can not handle composite request of type '"+request.getClass()+"' here");
             }
 
             return true;
@@ -828,6 +832,16 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         map.put("defaultIndex", newSource.get("defaultIndex"));
         map.put("buildNum", newSource.get("buildNum"));
         return map;
+    }
+    
+    private static boolean containsIndex(Set<IndexType> set, String index) {
+        for(IndexType t: set) {
+            if(t.getIndex().equals(index)) {
+                return true;
+            }
+        }
+    
+        return false;
     }
     
     private static void printLicenseInfo() {

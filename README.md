@@ -1,6 +1,8 @@
-# Search Guard Kibana Multitenancy Module for Search Guard 5
+# Search Guard 2 and 5 are End of Life (EOL)
 
-![Logo](https://raw.githubusercontent.com/floragunncom/sg-assets/master/logo/sg_dlic_small.png) 
+Search Guard 2 and 5 are [End of Life (EOL)](https://docs.search-guard.com/latest/eol-policy) and will no longer receive new features, bugfixes or security updates. Please update to Elasticsearch 6.7 or above.
+
+This repository is outdated. Please refer to the [Search Guard Documentation](https://docs.search-guard.com) and to https://github.com/floragunncom/search-guard-enterprise-modules
 
 ## About this module
 This module for [Search Guard 5](https://github.com/floragunncom/search-guard) adds true multi-tenancy capabilities to Kibana. Multitenancy works with ES 5.0.2 and higher.
